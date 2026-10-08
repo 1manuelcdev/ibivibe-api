@@ -310,6 +310,9 @@ describe('Companies (e2e)', () => {
 				name: 'Destaque',
 				slug: `destaque-${business.id}`,
 				group_id: group.id,
+				targets: {
+					create: [{ target_type: 'business' }],
+				},
 			},
 		});
 
