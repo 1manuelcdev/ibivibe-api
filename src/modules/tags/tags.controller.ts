@@ -16,6 +16,7 @@ import {
 	ApiQuery,
 	ApiResponse,
 } from '@nestjs/swagger';
+import { tag_target_type } from '@prisma/client';
 import { Public } from 'src/modules/common/decorators/public.decorator';
 
 import { CreateTagGroupDto } from './dto/create-tag-group.dto';
@@ -114,13 +115,20 @@ export class TagsController {
 		required: false,
 	})
 	@ApiQuery({ name: 'name', description: 'Filter by name', required: false })
+	@ApiQuery({
+		name: 'target_type',
+		description: 'Filter by target entity type',
+		enum: tag_target_type,
+		required: false,
+	})
 	@Public()
 	@Get()
 	findAllTags(
 		@Query('group_id') group_id?: string,
 		@Query('name') name?: string,
+		@Query('target_type') target_type?: tag_target_type,
 	) {
-		return this.tagsService.findAll({ group_id, name });
+		return this.tagsService.findAll({ group_id, name, target_type });
 	}
 
 	@ApiOperation({ summary: 'Get tag by ID' })

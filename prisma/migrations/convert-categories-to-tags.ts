@@ -37,25 +37,14 @@ async function main() {
 		);
 
 		// Create tag_groups and tags from seed data files
-		const companiesData = JSON.parse(
+		const tagsData = JSON.parse(
 			require('fs').readFileSync(
-				require('path').join(
-					__dirname,
-					'..',
-					'seed-data',
-					'tags-companies.json',
-				),
-				'utf-8',
-			),
-		);
-		const eventsData = JSON.parse(
-			require('fs').readFileSync(
-				require('path').join(__dirname, '..', 'seed-data', 'tags-events.json'),
+				require('path').join(__dirname, '..', 'seed-data', 'tags.json'),
 				'utf-8',
 			),
 		);
 
-		const allGroups = [...companiesData.groups, ...eventsData.groups];
+		const allGroups = tagsData.groups;
 
 		for (const group of allGroups) {
 			await prisma.$executeRaw`

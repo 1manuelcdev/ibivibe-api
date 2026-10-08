@@ -1,0 +1,52 @@
+[
+	{
+		"name": "Festival de Inverno de Ubajara",
+		"slug": "festival-inverno-ubajara",
+		"description": "O maior festival de inverno do Ceará",
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/events/festival-inverno.png",
+		"reach_level": "regional",
+		"type": "featured",
+		"start_date": "2025-06-15T19:00:00Z",
+		"end_date": "2025-06-22T23:00:00Z",
+		"active": true,
+		"business_slug": null,
+		"user_email": "admin@teste.com",
+		"tags": ["Eventos culturais", "Shows e apresentações", "Festivais"],
+		"cities": [
+			{ "slug": "ubajara", "adress_specific": "Parque Nacional de Ubajara" }
+		],
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/events/festival-inverno.png",
+				"is_cover": true,
+				"alt_text": "Festival de Inverno"
+			}
+		]
+	},
+	{
+		"name": "Noite do Forró",
+		"slug": "noite-do-forro",
+		"description": "Forró tradicional no centro de Tianguá",
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/events/noite-forro.png",
+		"reach_level": "local",
+		"type": "simple",
+		"start_date": "2025-07-05T21:00:00Z",
+		"end_date": "2025-07-05T23:59:00Z",
+		"active": true,
+		"business_slug": "serra-viva-music-bar",
+		"user_email": null,
+		"tags": ["Shows e apresentações", "Eventos culturais"],
+		"cities": [
+			{ "slug": "tiangua", "adress_specific": "Serra Viva Music Bar" }
+		],
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/events/noite-forro.png",
+				"is_cover": true,
+				"alt_text": "Noite do Forró"
+			}
+		]
+	}
+]

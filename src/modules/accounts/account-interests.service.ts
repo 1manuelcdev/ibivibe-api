@@ -19,7 +19,7 @@ export class AccountInterestsService {
 			where: { account_id: accountId },
 			include: {
 				tag: {
-					include: { group: true },
+					include: { targets: true },
 				},
 			},
 		});
@@ -29,12 +29,14 @@ export class AccountInterestsService {
 
 		for (const interest of interests) {
 			const tag = interest.tag;
-			const group = tag.group.name.toLowerCase();
+			const targetTypes = new Set(
+				tag.targets.map((target) => target.target_type),
+			);
 
-			if (group === 'business') {
+			if (targetTypes.has('business')) {
 				businesses.push({ id: tag.id, name: tag.name });
 			}
-			if (group === 'event') {
+			if (targetTypes.has('event')) {
 				events.push({ id: tag.id, name: tag.name });
 			}
 		}
@@ -51,13 +53,39 @@ export class AccountInterestsService {
 			throw new NotFoundException('Account not found');
 		}
 
-		const businessesData = (dto.businesses || []).map((bInterest) => ({
+		const requestedBusinessTags = [...new Set(dto.businesses || [])];
+		const requestedEventTags = [...new Set(dto.events || [])];
+		const validTags = await this.prismaService.tag.findMany({
+			where: {
+				OR: [
+					{
+						id: { in: requestedBusinessTags },
+						targets: { some: { target_type: 'business' } },
+					},
+					{
+						id: { in: requestedEventTags },
+						targets: { some: { target_type: 'event' } },
+					},
+				],
+			},
+			select: { id: true },
+		});
+		if (
+			validTags.length !==
+			new Set([...requestedBusinessTags, ...requestedEventTags]).size
+		) {
+			throw new NotFoundException(
+				'One or more interests were not found or are not available for the requested type',
+			);
+		}
+
+		const businessesData = requestedBusinessTags.map((bInterest) => ({
 			id: randomUUID(),
 			account_id: accountId,
 			tag_id: bInterest,
 		}));
 
-		const eventsData = (dto.events || []).map((eInterest) => ({
+		const eventsData = requestedEventTags.map((eInterest) => ({
 			id: randomUUID(),
 			account_id: accountId,
 			tag_id: eInterest,

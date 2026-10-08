@@ -201,9 +201,21 @@ Table tag {
   events event_tag [not null]
   cities city_tag [not null]
   interests account_interest [not null]
+  targets tag_target [not null]
 
   indexes {
     (group_id, name) [unique]
+  }
+}
+
+Table tag_target {
+  id String [pk]
+  tag_id String [not null]
+  target_type tag_target_type [not null]
+  tag tag [not null]
+
+  indexes {
+    (tag_id, target_type) [unique]
   }
 }
 
@@ -366,6 +378,12 @@ Table review {
   }
 }
 
+Enum tag_target_type {
+  city
+  business
+  event
+}
+
 Enum lead_type {
   resident
   tourist
@@ -443,6 +461,8 @@ Ref: account_interest.account_id > account.id [delete: Cascade]
 Ref: account_interest.tag_id > tag.id [delete: Cascade]
 
 Ref: tag.group_id > tag_group.id [delete: Cascade]
+
+Ref: tag_target.tag_id > tag.id [delete: Cascade]
 
 Ref: city_tag.tag_id > tag.id [delete: Cascade]
 

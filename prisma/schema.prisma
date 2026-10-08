@@ -214,10 +214,27 @@ model tag {
   events      event_tag[]
   cities      city_tag[]
   interests   account_interest[]
+  targets     tag_target[]
 
   @@unique([group_id, name])
   @@index([group_id])
   @@index([slug])
+}
+
+enum tag_target_type {
+  city
+  business
+  event
+}
+
+model tag_target {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag_id      String          @db.Uuid
+  target_type tag_target_type
+  tag         tag             @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([tag_id, target_type])
+  @@index([target_type])
 }
 
 model city_tag {
