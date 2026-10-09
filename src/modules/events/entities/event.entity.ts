@@ -1,4 +1,4 @@
-import { event_type, reach_level } from '@prisma/client';
+import { event_status, event_type, reach_level } from '@prisma/client';
 
 export class Event {
 	id: string;
@@ -11,10 +11,14 @@ export class Event {
 
 	type: event_type;
 	active: boolean;
+	status: event_status;
 	reach_level: reach_level;
 
 	start_date: Date;
 	end_date: Date;
+	cities: unknown[];
+	tags: unknown[];
+	medias: unknown[];
 	created_at: Date;
 	updated_at: Date;
 }

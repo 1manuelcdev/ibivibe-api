@@ -1,0 +1,83 @@
+[
+	{
+		"name": "Ubajara",
+		"slug": "ubajara",
+		"description": "Conheça Ubajara",
+		"lat": -3.8321,
+		"lng": -40.9224,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ubajara.png",
+		"tags": ["Turismo rural", "Ecoturismo", "Parques e atrações turísticas"]
+	},
+	{
+		"name": "Tianguá",
+		"slug": "tiangua",
+		"description": "Conheça Tianguá",
+		"lat": -3.7314,
+		"lng": -40.9917,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/tiangua.png",
+		"tags": ["Lojas de roupas e calçados", "Pousadas"]
+	},
+	{
+		"name": "Viçosa do Ceará",
+		"slug": "vicosa-do-ceara",
+		"description": "Conheça Viçosa do Ceará",
+		"lat": -3.5622,
+		"lng": -41.0911,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/vicosa-do-ceara.png",
+		"tags": ["Espaços culturais", "Espaços de lazer", "Turismo rural"]
+	},
+	{
+		"name": "Ibiapina",
+		"slug": "ibiapina",
+		"description": "Conheça Ibiapina",
+		"lat": -3.924,
+		"lng": -40.8911,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ibiapina.png",
+		"tags": ["Turismo rural", "Ecoturismo", "Cafeicultura"]
+	},
+	{
+		"name": "São Benedito",
+		"slug": "sao-benedito",
+		"description": "Conheça São Benedito",
+		"lat": -4.0486,
+		"lng": -40.865,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/sao-benedito.png",
+		"tags": ["Floricultura", "Produtores rurais", "Ecoturismo"]
+	},
+	{
+		"name": "Carnaubal",
+		"slug": "carnaubal",
+		"description": "Conheça Carnaubal",
+		"lat": -4.1595,
+		"lng": -40.9452,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/carnaubal.png",
+		"tags": ["Ecoturismo", "Turismo rural", "Produtores rurais"]
+	},
+	{
+		"name": "Guaraciaba do Norte",
+		"slug": "guaraciaba-do-norte",
+		"description": "Conheça Guaraciaba do Norte",
+		"lat": -4.1669,
+		"lng": -40.7475,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/guaraciaba-do-norte.png",
+		"tags": ["Turismo rural", "Cafeicultura", "Ecoturismo"]
+	},
+	{
+		"name": "Croatá",
+		"slug": "croata",
+		"description": "Conheça Croatá",
+		"lat": -4.4,
+		"lng": -40.91,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/croata.png",
+		"tags": ["Ecoturismo", "Turismo rural", "Espaços culturais"]
+	},
+	{
+		"name": "Ipu",
+		"slug": "ipu",
+		"description": "Conheça Ipu",
+		"lat": -4.3175,
+		"lng": -40.7059,
+		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ipu.png",
+		"tags": ["Ecoturismo", "Espaços culturais", "Eventos culturais"]
+	}
+]

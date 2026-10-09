@@ -1,0 +1,14 @@
+[
+	{
+		"user_email": "user@teste.com",
+		"city_slug": "ubajara",
+		"event_slug": "festival-inverno-ubajara",
+		"business_slug": "manaca-da-serra"
+	},
+	{
+		"user_email": "maria@negocio.com",
+		"city_slug": "tiangua",
+		"event_slug": "noite-do-forro",
+		"business_slug": null
+	}
+]

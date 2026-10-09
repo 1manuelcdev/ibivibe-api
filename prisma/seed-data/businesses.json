@@ -1,0 +1,53 @@
+[
+	{
+		"name": "Manacá da Serra",
+		"slug": "manaca-da-serra",
+		"description": "Restaurante Manacá da Serra",
+		"cnpj": "12.345.678/0001-90",
+		"max_reach_level": "local",
+		"tags": ["Restaurantes"],
+		"cities": [
+			{
+				"slug": "ubajara",
+				"is_headquarter": true,
+				"adress_specific": "Centro, Ubajara - CE"
+			}
+		],
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/businesses/manaca.png",
+				"is_cover": true,
+				"alt_text": "Imagem do Manacá da Serra"
+			}
+		]
+	},
+	{
+		"name": "Serra Viva Music Bar",
+		"slug": "serra-viva-music-bar",
+		"description": "Serra Viva Music Bar",
+		"cnpj": "98.765.432/0001-10",
+		"max_reach_level": "regional",
+		"tags": ["Bares e pubs", "Casas de eventos"],
+		"cities": [
+			{
+				"slug": "ubajara",
+				"is_headquarter": true,
+				"adress_specific": "Praça Central, Ubajara - CE"
+			},
+			{
+				"slug": "tiangua",
+				"is_headquarter": false,
+				"adress_specific": "Avenida Principal, Tianguá - CE"
+			}
+		],
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/businesses/serraviva.png",
+				"is_cover": true,
+				"alt_text": "Imagem do Serra Viva"
+			}
+		]
+	}
+]

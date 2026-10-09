@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import sharp from 'sharp';
 
-export type ImageUploadPurpose = 'business-gallery' | 'business-profile';
+export type ImageUploadPurpose =
+	| 'business-gallery'
+	| 'business-profile'
+	| 'event-gallery';
 
 export type ProcessedImage = {
 	buffer: Buffer;
@@ -32,6 +35,14 @@ export class ImageProcessingService {
 		},
 		'business-gallery': {
 			maxBytes: 5 * 1024 * 1024,
+			maxWidth: 4096,
+			maxHeight: 4096,
+			maxPixels: 16_000_000,
+			outputWidth: 1920,
+			outputHeight: 1920,
+		},
+		'event-gallery': {
+			maxBytes: 10 * 1024 * 1024,
 			maxWidth: 4096,
 			maxHeight: 4096,
 			maxPixels: 16_000_000,

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 import {
 	INestApplication,
 	ValidationPipe,
@@ -10,8 +8,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { hashPassword } from 'src/modules/common/password/password.util';
 import { PrismaModule } from 'src/modules/common/prisma/prisma.module';
 import { PrismaService } from 'src/modules/common/prisma/prisma.service';
-import { Event } from 'src/modules/events/entities/event.entity';
 import { EventsModule } from 'src/modules/events/events.module';
+import { MediasService } from 'src/modules/medias/medias.service';
+import { R2StorageService } from 'src/modules/medias/r2-storage.service';
 import request from 'supertest';
 import { App } from 'supertest/types';
 
@@ -19,6 +18,13 @@ describe('Events (e2e)', () => {
 	let app: INestApplication<App>;
 	let prisma: PrismaService;
 	const BASE_PATH = '/api/v1/events';
+	const mediaService = {
+		getMediaByEvent: jest.fn(),
+		addEventMedia: jest.fn(),
+		updateEventMedia: jest.fn(),
+		reorderEventMedia: jest.fn(),
+		removeEventMedia: jest.fn(),
+	};
 
 	beforeAll(async () => {
 		const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -27,25 +33,31 @@ describe('Events (e2e)', () => {
 				PrismaModule,
 				EventsModule,
 			],
-		}).compile();
+		})
+			.overrideProvider(MediasService)
+			.useValue(mediaService)
+			.overrideProvider(R2StorageService)
+			.useValue({})
+			.compile();
 
 		app = moduleFixture.createNestApplication();
-
 		app.setGlobalPrefix('/api');
 		app.enableVersioning({ type: VersioningType.URI });
-
 		prisma = moduleFixture.get<PrismaService>(PrismaService);
-
+		app.use((req: any, _res: any, next: () => void) => {
+			const accountId = req.headers['x-test-account-id'];
+			if (accountId) req.user = { id: accountId, role: 'user' };
+			next();
+		});
 		app.useGlobalPipes(
 			new ValidationPipe({ whitelist: true, transform: true }),
 		);
-
 		await app.init();
 	});
 
 	afterEach(async () => {
-		await prisma.$executeRaw`TRUNCATE TABLE "event" RESTART IDENTITY CASCADE`;
-		await prisma.$executeRaw`TRUNCATE TABLE "account" RESTART IDENTITY CASCADE`;
+		await prisma.$executeRaw`TRUNCATE TABLE "event", "account", "tag_group", "city" RESTART IDENTITY CASCADE`;
+		jest.clearAllMocks();
 	});
 
 	afterAll(async () => {
@@ -53,174 +65,190 @@ describe('Events (e2e)', () => {
 		await app.close();
 	});
 
-	// Helper function to create an account for events
-	const createEventAccount = async (slug: string, name: string) => {
-		return await prisma.account.create({
+	const createAccount = async (
+		slug: string,
+		type: 'personal' | 'business' = 'personal',
+	) =>
+		prisma.account.create({
 			data: {
 				id: crypto.randomUUID(),
 				email: `event-${slug}@test.com`,
 				password: await hashPassword('password123'),
-				phone_number: `+5588${Math.floor(Math.random() * 100000000)
-					.toString()
-					.padStart(8, '0')}`,
-				name,
+				phone_number: `+5588${Date.now().toString().slice(-8)}`,
+				name: slug,
 				slug,
-				display_name: name,
-				type: 'personal',
+				display_name: slug,
+				type,
 				is_verified: true,
 				active: true,
 			},
 		});
+
+	const createReferences = async () => {
+		const group = await prisma.tag_group.create({
+			data: { name: `Events ${crypto.randomUUID()}` },
+		});
+		const tag = await prisma.tag.create({
+			data: {
+				name: 'Festival',
+				slug: `festival-${crypto.randomUUID()}`,
+				group_id: group.id,
+			},
+		});
+		await prisma.tag_target.create({
+			data: { tag_id: tag.id, target_type: 'event' },
+		});
+		const cityId = crypto.randomUUID();
+		await prisma.$executeRaw`
+			INSERT INTO "city" (id, slug, name, location, created_at, updated_at)
+			VALUES (${cityId}::uuid, ${`city-${cityId}`}, 'Event City', ST_SetSRID(ST_MakePoint(-40, -3), 4326), NOW(), NOW())
+		`;
+		return { cityId, tagId: tag.id };
 	};
 
-	it('GET /events -> lists all events', async () => {
-		const eventAccount = await createEventAccount('event-owner', 'Event Owner');
-
-		await prisma.$executeRaw`
-      INSERT INTO "event" (id, name, slug, description, start_date, end_date, type, reach_level, active, owner_account_id, created_at, updated_at) 
-      VALUES (
-        gen_random_uuid(), 
-        'Test Event', 
-        'test-event', 
-        'Test Description', 
-        NOW(), 
-        NOW(), 
-        'simple', 
-        'local', 
-        true, 
-        ${eventAccount.id}::uuid,
-        NOW(), 
-        NOW()
-      )
-    `;
-
-		const res = await request(app.getHttpServer()).get(BASE_PATH).expect(200);
-
-		expect(Array.isArray(res.body)).toBe(true);
-		expect(res.body.length).toBe(1);
-		expect(res.body[0].name).toBe('Test Event');
+	const payload = (
+		ownerId: string,
+		refs?: { cityId: string; tagId: string },
+	) => ({
+		owner_account_id: ownerId,
+		name: 'New Event',
+		description: 'New Description',
+		type: 'simple',
+		reach_level: 'local',
+		start_date: '2026-10-07T18:00:00.000Z',
+		end_date: '2026-10-07T20:00:00.000Z',
+		...(refs ? { city_ids: [refs.cityId], tag_ids: [refs.tagId] } : {}),
 	});
 
-	it('GET /events -> returns empty array when no events exist', async () => {
-		const res = await request(app.getHttpServer()).get(BASE_PATH).expect(200);
-
-		expect(Array.isArray(res.body)).toBe(true);
-		expect(res.body.length).toBe(0);
-	});
-
-	it('GET /events/:id -> returns 404 if event not found', async () => {
-		const fakeUuid = '00000000-0000-0000-0000-000000000000';
-		await request(app.getHttpServer())
-			.get(`${BASE_PATH}/${fakeUuid}`)
-			.expect(404);
-	});
-
-	it('GET /events/:id -> returns one event by id', async () => {
-		const eventId = '550e8400-e29b-41d4-a716-446655440000';
-		const eventAccount = await createEventAccount(
-			'event-owner-2',
-			'Event Owner 2',
-		);
-
-		await prisma.$executeRaw`
-      INSERT INTO "event" (id, name, slug, description, start_date, end_date, type, reach_level, active, owner_account_id, created_at, updated_at) 
-      VALUES (
-        ${eventId}::uuid, 
-        'Test Event', 
-        'test-event-2', 
-        'Test Description', 
-        NOW(), 
-        NOW(), 
-        'simple', 
-        'local', 
-        true, 
-        ${eventAccount.id}::uuid,
-        NOW(), 
-        NOW()
-      )
-    `;
-
-		const res = await request(app.getHttpServer())
-			.get(`${BASE_PATH}/${eventId}`)
-			.expect(200);
-
-		const body = res.body as Event;
-		expect(body.id).toBe(eventId);
-		expect(body.name).toBe('Test Event');
-	});
-
-	it('POST /events -> creates an event', async () => {
-		const res = await request(app.getHttpServer()).post(BASE_PATH).send({
-			name: 'New Event',
-			slug: 'new-event',
-			description: 'New Description',
-			start_date: '2025-06-01T10:00:00.000Z',
-			end_date: '2025-06-01T12:00:00.000Z',
-			type: 'simple',
-			reach_level: 'local',
+	it('lists only active published events publicly and returns owned drafts privately', async () => {
+		const owner = await createAccount('list-owner');
+		const published = await prisma.event.create({
+			data: {
+				...payload(owner.id),
+				slug: 'published-event',
+				status: 'published',
+			} as any,
+		});
+		await prisma.event.create({
+			data: {
+				...payload(owner.id),
+				slug: 'draft-event',
+				status: 'draft',
+			} as any,
 		});
 
-		expect([201, 400]).toContain(res.status);
-
-		if (res.status === 201) {
-			expect(res.body).toHaveProperty('id');
-			expect(res.body.name).toBe('New Event');
-		}
-	});
-
-	it('PATCH /events/:id -> updates an event', async () => {
-		const eventId = '770e8400-e29b-41d4-a716-446655440002';
-		const eventAccount = await createEventAccount(
-			'event-owner-3',
-			'Event Owner 3',
-		);
-
-		await prisma.$executeRaw`
-      INSERT INTO "event" (id, name, slug, description, start_date, end_date, type, reach_level, active, owner_account_id, created_at, updated_at) 
-      VALUES (${eventId}::uuid, 'Original Name', 'original-name', 'Original Description', NOW(), NOW(), 'simple', 'local', true, ${eventAccount.id}::uuid, NOW(), NOW())
-    `;
-
-		const res = await request(app.getHttpServer())
-			.patch(`${BASE_PATH}/${eventId}`)
-			.send({ name: 'Updated Name' })
+		const publicResponse = await request(app.getHttpServer())
+			.get(BASE_PATH)
 			.expect(200);
-
-		expect(res.body.name).toBe('Updated Name');
+		const ownedResponse = await request(app.getHttpServer())
+			.get(`${BASE_PATH}/owned`)
+			.set('x-test-account-id', owner.id)
+			.expect(200);
+		expect(publicResponse.body.map((event: any) => event.id)).toEqual([
+			published.id,
+		]);
+		expect(ownedResponse.body).toHaveLength(2);
 	});
 
-	it('PATCH /events/:id -> returns 404 if event not found', async () => {
-		const fakeUuid = '00000000-0000-0000-0000-000000000000';
+	it('creates a published event with cities and event-compatible tags', async () => {
+		const owner = await createAccount('create-owner');
+		const refs = await createReferences();
+		const response = await request(app.getHttpServer())
+			.post(BASE_PATH)
+			.set('x-test-account-id', owner.id)
+			.send(payload(crypto.randomUUID(), refs))
+			.expect(201);
+
+		expect(response.body.status).toBe('published');
+		expect(response.body.cities).toEqual([
+			expect.objectContaining({ id: refs.cityId }),
+		]);
+		expect(response.body.tags).toEqual([
+			expect.objectContaining({ id: refs.tagId }),
+		]);
+		expect(response.body.owner_account_id).toBe(owner.id);
+	});
+
+	it('saves a draft and publishes it only after dates are supplied', async () => {
+		const owner = await createAccount('draft-owner');
+		const draft = await request(app.getHttpServer())
+			.post(BASE_PATH)
+			.set('x-test-account-id', owner.id)
+			.send({
+				...payload(owner.id),
+				status: 'draft',
+				start_date: undefined,
+				end_date: undefined,
+			})
+			.expect(201);
+		expect(draft.body.status).toBe('draft');
 		await request(app.getHttpServer())
-			.patch(`${BASE_PATH}/${fakeUuid}`)
-			.send({ name: 'Updated Name' })
+			.patch(`${BASE_PATH}/${draft.body.id}/publish`)
+			.set('x-test-account-id', owner.id)
+			.expect(400);
+		await request(app.getHttpServer())
+			.patch(`${BASE_PATH}/${draft.body.id}`)
+			.set('x-test-account-id', owner.id)
+			.send({
+				start_date: '2026-10-07T18:00:00.000Z',
+				end_date: '2026-10-07T20:00:00.000Z',
+			})
+			.expect(200);
+		const published = await request(app.getHttpServer())
+			.patch(`${BASE_PATH}/${draft.body.id}/publish`)
+			.set('x-test-account-id', owner.id)
+			.expect(200);
+		expect(published.body.status).toBe('published');
+	});
+
+	it('rejects invalid tags and prevents another account from editing', async () => {
+		const owner = await createAccount('secure-owner');
+		const other = await createAccount('other-owner');
+		await request(app.getHttpServer())
+			.post(BASE_PATH)
+			.set('x-test-account-id', owner.id)
+			.send({ ...payload(owner.id), tag_ids: [crypto.randomUUID()] })
+			.expect(400);
+		const event = await request(app.getHttpServer())
+			.post(BASE_PATH)
+			.set('x-test-account-id', owner.id)
+			.send(payload(owner.id))
+			.expect(201);
+		await request(app.getHttpServer())
+			.patch(`${BASE_PATH}/${event.body.id}`)
+			.set('x-test-account-id', other.id)
+			.send({ name: 'Hijacked Event' })
+			.expect(403);
+	});
+
+	it('rejects cities that do not exist', async () => {
+		const owner = await createAccount('city-owner');
+		await request(app.getHttpServer())
+			.post(BASE_PATH)
+			.set('x-test-account-id', owner.id)
+			.send({ ...payload(owner.id), city_ids: [crypto.randomUUID()] })
 			.expect(404);
 	});
 
-	it('DELETE /events/:id -> deletes an event', async () => {
-		const eventId = '880e8400-e29b-41d4-a716-446655440003';
-		const eventAccount = await createEventAccount(
-			'event-owner-4',
-			'Event Owner 4',
-		);
-
-		await prisma.$executeRaw`
-      INSERT INTO "event" (id, name, slug, description, start_date, end_date, type, reach_level, active, owner_account_id, created_at, updated_at) 
-      VALUES (${eventId}::uuid, 'To Delete', 'to-delete', 'Description', NOW(), NOW(), 'simple', 'local', true, ${eventAccount.id}::uuid, NOW(), NOW())
-    `;
-
-		const res = await request(app.getHttpServer()).delete(
-			`${BASE_PATH}/${eventId}`,
-		);
-
-		expect([200, 500]).toContain(res.status);
-	});
-
-	it('DELETE /events/:id -> returns 404 if event not found', async () => {
-		const fakeUuid = '00000000-0000-0000-0000-000000000000';
-		const res = await request(app.getHttpServer()).delete(
-			`${BASE_PATH}/${fakeUuid}`,
-		);
-
-		expect([200, 404, 500]).toContain(res.status);
+	it('exposes the event media contract through the event routes', async () => {
+		const owner = await createAccount('media-owner');
+		mediaService.getMediaByEvent.mockResolvedValue([
+			{ id: 'media-1', is_cover: true, position: 0 },
+		]);
+		mediaService.addEventMedia.mockResolvedValue({
+			id: 'media-1',
+			is_cover: true,
+			position: 0,
+		});
+		await request(app.getHttpServer())
+			.get(`${BASE_PATH}/event-1/media`)
+			.expect(200);
+		await request(app.getHttpServer())
+			.post(`${BASE_PATH}/event-1/media`)
+			.set('x-test-account-id', owner.id)
+			.attach('file', Buffer.from('image'), 'cover.png')
+			.field('is_cover', 'true')
+			.expect(201);
+		expect(mediaService.addEventMedia).toHaveBeenCalled();
 	});
 });

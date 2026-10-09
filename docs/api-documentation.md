@@ -2,6 +2,49 @@
 
 ## Overview
 
+## Events: creation, drafts and media
+
+`POST /api/v1/events` derives `owner_account_id` from the authenticated account. A
+client-supplied owner is ignored when a token is present. The request supports:
+
+```json
+{
+	"name": "Festival de Inverno",
+	"description": "Descrição do evento",
+	"slug": "festival-de-inverno",
+	"type": "featured",
+	"active": true,
+	"reach_level": "regional",
+	"start_date": "2026-10-07T18:00:00.000Z",
+	"end_date": "2026-10-07T23:00:00.000Z",
+	"city_ids": ["city-uuid"],
+	"tag_ids": ["tag-uuid"],
+	"status": "published"
+}
+```
+
+`status` is `published` or `draft` and defaults to `published` for backward
+compatibility. Published events require valid ISO 8601 dates and `end_date`
+after `start_date`; drafts may be completed later. `GET /api/v1/events` returns
+active published events. `GET /api/v1/events/owned` returns all events,
+including drafts, for the authenticated account. `PATCH /api/v1/events/:id/publish`
+publishes an owned draft after validating its dates.
+
+Cities must exist and, for business accounts, belong to the headquarters or one
+of its branches. Tags must exist and have `target_type=event`. `featured` and
+`regional` events require the account business to have `max_reach_level=regional`.
+
+Event media uses multipart upload:
+
+- `GET /api/v1/events/:id/media`
+- `POST /api/v1/events/:id/media` with `file`, optional `is_cover`, `position`, and `alt_text`
+- `PATCH /api/v1/events/:id/media/:mediaId`
+- `PATCH /api/v1/events/:id/media/order` with `{ "media_ids": ["uuid"] }`
+- `DELETE /api/v1/events/:id/media/:mediaId`
+
+Only the event owner can mutate media. At most one media item is the cover;
+when omitted, the first uploaded item becomes the cover.
+
 This document describes the API changes resulting from the migration to a unified account/profile model. The previous separate `account` and `profile` entities have been merged into a single `account` entity that contains both authentication and profile data.
 
 ## Key Changes

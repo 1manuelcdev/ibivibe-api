@@ -2,6 +2,7 @@
 	"groups": [
 		{
 			"name": "Comércio",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Supermercados e mercantis",
 				"Lojas de roupas e calçados",
@@ -16,6 +17,7 @@
 		},
 		{
 			"name": "Alimentação e Bebidas",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Restaurantes",
 				"Lanchonetes",
@@ -30,6 +32,7 @@
 		},
 		{
 			"name": "Turismo e Hospitalidade",
+			"target_types": ["business", "city", "event"],
 			"tags": [
 				"Hotéis",
 				"Pousadas",
@@ -44,6 +47,7 @@
 		},
 		{
 			"name": "Cultura, Lazer e Entretenimento",
+			"target_types": ["business", "city", "event"],
 			"tags": [
 				"Casas de eventos",
 				"Produtoras culturais",
@@ -57,6 +61,7 @@
 		},
 		{
 			"name": "Saúde e Bem-estar",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Clínicas médicas",
 				"Consultórios odontológicos",
@@ -71,6 +76,7 @@
 		},
 		{
 			"name": "Serviços Gerais",
+			"target_types": ["business"],
 			"tags": [
 				"Oficinas mecânicas",
 				"Serviços elétricos",
@@ -84,6 +90,7 @@
 		},
 		{
 			"name": "Educação e Capacitação",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Escolas",
 				"Faculdades",
@@ -97,6 +104,7 @@
 		},
 		{
 			"name": "Serviços Profissionais",
+			"target_types": ["business"],
 			"tags": [
 				"Contabilidade",
 				"Advocacia",
@@ -111,6 +119,7 @@
 		},
 		{
 			"name": "Indústria e Produção",
+			"target_types": ["business"],
 			"tags": [
 				"Indústrias alimentícias",
 				"Fábricas",
@@ -124,6 +133,7 @@
 		},
 		{
 			"name": "Agronegócio e Economia Rural",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Produtores rurais",
 				"Cooperativas agrícolas",
@@ -138,6 +148,7 @@
 		},
 		{
 			"name": "Financeiro e Imobiliário",
+			"target_types": ["business"],
 			"tags": [
 				"Bancos",
 				"Cooperativas de crédito",
@@ -150,6 +161,7 @@
 		},
 		{
 			"name": "Institucional e Terceiro Setor",
+			"target_types": ["business", "city"],
 			"tags": [
 				"Associações",
 				"ONGs",
@@ -159,6 +171,43 @@
 				"Fundações",
 				"Entidades culturais"
 			]
+		},
+		{
+			"name": "Eventos Abertos ao Público",
+			"target_types": ["event"],
+			"tags": [
+				"Shows e apresentações",
+				"Festivais",
+				"Feiras e exposições",
+				"Eventos gastronômicos",
+				"Eventos culturais",
+				"Eventos esportivos"
+			]
+		},
+		{
+			"name": "Eventos Corporativos",
+			"target_types": ["event"],
+			"tags": [
+				"Palestras",
+				"Workshops",
+				"Treinamentos",
+				"Congressos",
+				"Encontros empresariais"
+			]
+		},
+		{
+			"name": "Eventos Comerciais",
+			"target_types": ["event"],
+			"tags": [
+				"Ações Promocionais",
+				"Inaugurações",
+				"Lançamentos de produtos",
+				"Liquidações especiais",
+				"Datas comemorativas"
+			]
 		}
-	]
+	],
+	"tag_targets": {
+		"Eventos culturais": ["city", "event"]
+	}
 }

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { tag_target_type } from '@prisma/client';
 import { PrismaService } from 'src/modules/common/prisma/prisma.service';
 
 import { CreateTagDto } from './dto/create-tag.dto';
@@ -26,19 +27,31 @@ export class TagsService {
 				description: dto.description,
 				color: dto.color,
 				position: dto.position ?? 0,
+				...(dto.target_types && {
+					targets: {
+						create: dto.target_types.map((target_type) => ({ target_type })),
+					},
+				}),
 			},
 		});
 	}
 
-	findAll(filters?: { group_id?: string; name?: string }) {
+	findAll(filters?: {
+		group_id?: string;
+		name?: string;
+		target_type?: tag_target_type;
+	}) {
 		return this.prismaService.tag.findMany({
 			where: {
 				...(filters?.group_id && { group_id: filters.group_id }),
 				...(filters?.name && {
 					name: { contains: filters.name, mode: 'insensitive' },
 				}),
+				...(filters?.target_type && {
+					targets: { some: { target_type: filters.target_type } },
+				}),
 			},
-			include: { group: true },
+			include: { group: true, targets: true },
 			orderBy: [{ group: { name: 'asc' } }, { position: 'asc' }],
 		});
 	}
@@ -73,11 +86,18 @@ export class TagsService {
 
 	async update(id: string, dto: UpdateTagDto) {
 		await this.findOne(id);
+		const { target_types, ...tagData } = dto;
 		return this.prismaService.tag.update({
 			where: { id },
 			data: {
-				...dto,
+				...tagData,
 				...(dto.name && { slug: this.slugify(dto.name) }),
+				...(target_types && {
+					targets: {
+						deleteMany: {},
+						create: target_types.map((target_type) => ({ target_type })),
+					},
+				}),
 			},
 		});
 	}

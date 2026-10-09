@@ -167,6 +167,7 @@ describe('TagsController', () => {
 				expect(tagsService.findAll).toHaveBeenCalledWith({
 					group_id: undefined,
 					name: undefined,
+					target_type: undefined,
 				});
 			});
 
@@ -178,6 +179,19 @@ describe('TagsController', () => {
 				expect(tagsService.findAll).toHaveBeenCalledWith({
 					group_id: 'group-1',
 					name: undefined,
+					target_type: undefined,
+				});
+			});
+
+			it('should filter tags by target type', async () => {
+				jest.spyOn(tagsService, 'findAll').mockResolvedValue([]);
+
+				await controller.findAllTags(undefined, undefined, 'event' as any);
+
+				expect(tagsService.findAll).toHaveBeenCalledWith({
+					group_id: undefined,
+					name: undefined,
+					target_type: 'event',
 				});
 			});
 		});
