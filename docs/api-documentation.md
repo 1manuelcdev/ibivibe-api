@@ -9,17 +9,17 @@ client-supplied owner is ignored when a token is present. The request supports:
 
 ```json
 {
-  "name": "Festival de Inverno",
-  "description": "Descrição do evento",
-  "slug": "festival-de-inverno",
-  "type": "featured",
-  "active": true,
-  "reach_level": "regional",
-  "start_date": "2026-10-07T18:00:00.000Z",
-  "end_date": "2026-10-07T23:00:00.000Z",
-  "city_ids": ["city-uuid"],
-  "tag_ids": ["tag-uuid"],
-  "status": "published"
+	"name": "Festival de Inverno",
+	"description": "Descrição do evento",
+	"slug": "festival-de-inverno",
+	"type": "featured",
+	"active": true,
+	"reach_level": "regional",
+	"start_date": "2026-10-07T18:00:00.000Z",
+	"end_date": "2026-10-07T23:00:00.000Z",
+	"city_ids": ["city-uuid"],
+	"tag_ids": ["tag-uuid"],
+	"status": "published"
 }
 ```
 

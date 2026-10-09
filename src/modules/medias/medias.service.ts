@@ -255,22 +255,39 @@ export class MediasService {
 		});
 	}
 
-	async addEventMedia(eventId: string, accountId: string, file: Express.Multer.File, dto: any) {
+	async addEventMedia(
+		eventId: string,
+		accountId: string,
+		file: Express.Multer.File,
+		dto: any,
+	) {
 		await this.assertEventOwner(eventId, accountId);
 		this.assertImage(file);
 		const uploaded = file.mimetype.startsWith('video/')
-			? await this.storageService.upload(`media/events/gallery/${randomUUID()}-${file.originalname}`, file.buffer, file.mimetype)
+			? await this.storageService.upload(
+					`media/events/gallery/${randomUUID()}-${file.originalname}`,
+					file.buffer,
+					file.mimetype,
+				)
 			: await this.upload(file, 'event-gallery');
 		try {
 			return await this.prismaService.$transaction(async (tx) => {
-				const position = dto.position ?? await tx.media.count({ where: { event_id: eventId } });
-				if (dto.is_cover) await tx.media.updateMany({ where: { event_id: eventId }, data: { is_cover: false } });
+				const position =
+					dto.position ??
+					(await tx.media.count({ where: { event_id: eventId } }));
+				if (dto.is_cover)
+					await tx.media.updateMany({
+						where: { event_id: eventId },
+						data: { is_cover: false },
+					});
 				return tx.media.create({
 					data: {
 						event_id: eventId,
 						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
-						url: uploaded.url, is_cover: dto.is_cover ?? position === 0,
-						position, alt_text: dto.alt_text,
+						url: uploaded.url,
+						is_cover: dto.is_cover ?? position === 0,
+						position,
+						alt_text: dto.alt_text,
 					},
 				});
 			});
@@ -280,26 +297,60 @@ export class MediasService {
 		}
 	}
 
-	async updateEventMedia(eventId: string, mediaId: string, accountId: string, dto: any) {
+	async updateEventMedia(
+		eventId: string,
+		mediaId: string,
+		accountId: string,
+		dto: any,
+	) {
 		await this.assertEventOwner(eventId, accountId);
-		const media = await this.prismaService.media.findFirst({ where: { id: mediaId, event_id: eventId } });
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, event_id: eventId },
+		});
 		if (!media) throw new NotFoundException('Media not found');
 		return this.prismaService.$transaction(async (tx) => {
-			if (dto.is_cover) await tx.media.updateMany({ where: { event_id: eventId, id: { not: mediaId } }, data: { is_cover: false } });
-			return tx.media.update({ where: { id: mediaId }, data: { position: dto.position, is_cover: dto.is_cover, alt_text: dto.alt_text } });
+			if (dto.is_cover)
+				await tx.media.updateMany({
+					where: { event_id: eventId, id: { not: mediaId } },
+					data: { is_cover: false },
+				});
+			return tx.media.update({
+				where: { id: mediaId },
+				data: {
+					position: dto.position,
+					is_cover: dto.is_cover,
+					alt_text: dto.alt_text,
+				},
+			});
 		});
 	}
 
-	async reorderEventMedia(eventId: string, accountId: string, mediaIds: string[]) {
+	async reorderEventMedia(
+		eventId: string,
+		accountId: string,
+		mediaIds: string[],
+	) {
 		await this.assertEventOwner(eventId, accountId);
-		const records = await this.prismaService.media.findMany({ where: { event_id: eventId, id: { in: mediaIds } }, select: { id: true } });
-		if (records.length !== mediaIds.length) throw new NotFoundException('One or more media do not belong to this event');
-		return this.prismaService.$transaction(mediaIds.map((id, position) => this.prismaService.media.update({ where: { id }, data: { position } })));
+		const records = await this.prismaService.media.findMany({
+			where: { event_id: eventId, id: { in: mediaIds } },
+			select: { id: true },
+		});
+		if (records.length !== mediaIds.length)
+			throw new NotFoundException(
+				'One or more media do not belong to this event',
+			);
+		return this.prismaService.$transaction(
+			mediaIds.map((id, position) =>
+				this.prismaService.media.update({ where: { id }, data: { position } }),
+			),
+		);
 	}
 
 	async removeEventMedia(eventId: string, mediaId: string, accountId: string) {
 		await this.assertEventOwner(eventId, accountId);
-		const media = await this.prismaService.media.findFirst({ where: { id: mediaId, event_id: eventId } });
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, event_id: eventId },
+		});
 		if (!media) throw new NotFoundException('Media not found');
 		await this.prismaService.media.delete({ where: { id: mediaId } });
 		const key = this.keyFromUrl(media.url);

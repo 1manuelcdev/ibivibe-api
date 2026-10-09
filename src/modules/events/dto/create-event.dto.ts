@@ -77,7 +77,9 @@ export class CreateEventDTO {
 	type: event_type;
 
 	@ApiProperty({ example: { active: true }, type: Boolean })
-	@Transform(({ value }) => (value && typeof value === 'object' ? value.active : value))
+	@Transform(({ value }) =>
+		value && typeof value === 'object' ? value.active : value,
+	)
 	@IsBoolean()
 	active = true;
 

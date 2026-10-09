@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import sharp from 'sharp';
 
-export type ImageUploadPurpose = 'business-gallery' | 'business-profile' | 'event-gallery';
+export type ImageUploadPurpose =
+	| 'business-gallery'
+	| 'business-profile'
+	| 'event-gallery';
 
 export type ProcessedImage = {
 	buffer: Buffer;
