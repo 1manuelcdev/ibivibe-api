@@ -7,8 +7,6 @@ export class Event {
 	name: string;
 	slug: string;
 	description: string | null;
-	cover_img_url: string | null;
-
 	type: event_type;
 	active: boolean;
 	status: event_status;

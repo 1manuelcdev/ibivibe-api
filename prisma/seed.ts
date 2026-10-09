@@ -30,7 +30,7 @@ interface CityEntry {
 	description: string;
 	lat: number;
 	lng: number;
-	cover_img_url: string;
+	medias: MediaEntry[];
 	tags: string[];
 }
 
@@ -82,7 +82,6 @@ interface EventEntry {
 	name: string;
 	slug: string;
 	description: string;
-	cover_img_url: string;
 	reach_level: 'local' | 'regional';
 	type: 'simple' | 'featured';
 	status?: 'published' | 'draft';
@@ -260,13 +259,12 @@ async function main() {
 				// city tem campo Unsupported("geometry"), então create/upsert não existem no tipo.
 				// Usamos raw SQL para insert/update + location em uma só operação.
 				await tx.$executeRaw`
-					INSERT INTO city (id, slug, name, description, cover_img_url, location, created_at, updated_at)
+					INSERT INTO city (id, slug, name, description, location, created_at, updated_at)
 					VALUES (
 						gen_random_uuid(),
 						${cityData.slug},
 						${cityData.name},
 						${cityData.description},
-						${cityData.cover_img_url},
 						ST_SetSRID(ST_MakePoint(${cityData.lng}, ${cityData.lat}), 4326),
 						now(),
 						now()
@@ -274,7 +272,6 @@ async function main() {
 					ON CONFLICT (slug) DO UPDATE SET
 						name         = EXCLUDED.name,
 						description  = EXCLUDED.description,
-						cover_img_url = EXCLUDED.cover_img_url,
 						location     = EXCLUDED.location,
 						updated_at   = now()
 				`;
@@ -292,6 +289,39 @@ async function main() {
 				}
 
 				cityMap.set(cityData.slug, cityId);
+
+				if (cityData.medias.some((media) => media.is_cover))
+					await tx.media.updateMany({
+						where: { city_id: cityId },
+						data: { is_cover: false },
+					});
+				for (const media of cityData.medias) {
+					const existingMedia = await tx.media.findFirst({
+						where: { city_id: cityId, url: media.url },
+					});
+					if (existingMedia) {
+						await tx.media.update({
+							where: { id: existingMedia.id },
+							data: {
+								media_type: media.media_type,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+								alt_text: media.alt_text,
+							},
+						});
+					} else {
+						await tx.media.create({
+							data: {
+								city_id: cityId,
+								media_type: media.media_type,
+								url: media.url,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+								alt_text: media.alt_text,
+							},
+						});
+					}
+				}
 
 				// Tags da cidade
 				for (const tagName of cityData.tags) {
@@ -569,7 +599,6 @@ async function main() {
 					update: {
 						name: evData.name,
 						description: evData.description,
-						cover_img_url: evData.cover_img_url,
 						reach_level: evData.reach_level,
 						type: evData.type,
 						start_date: new Date(evData.start_date),
@@ -582,7 +611,6 @@ async function main() {
 						owner_account_id: ownerAccountId,
 						name: evData.name,
 						description: evData.description,
-						cover_img_url: evData.cover_img_url,
 						reach_level: evData.reach_level,
 						type: evData.type,
 						start_date: new Date(evData.start_date),
@@ -635,6 +663,11 @@ async function main() {
 				}
 
 				// Mídias do evento
+				if (evData.medias.some((media) => media.is_cover))
+					await tx.media.updateMany({
+						where: { event_id: event.id },
+						data: { is_cover: false },
+					});
 				for (const media of evData.medias) {
 					const existingMedia = await tx.media.findFirst({
 						where: { event_id: event.id, url: media.url },

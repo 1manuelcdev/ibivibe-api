@@ -1,28 +1,8 @@
-import {
-	Body,
-	Controller,
-	Delete,
-	Get,
-	Param,
-	Patch,
-	Post,
-	Query,
-} from '@nestjs/common';
-import {
-	ApiBearerAuth,
-	ApiBody,
-	ApiOperation,
-	ApiParam,
-	ApiQuery,
-	ApiResponse,
-} from '@nestjs/swagger';
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { ApiOperation, ApiParam, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { tag_target_type } from '@prisma/client';
 import { Public } from 'src/modules/common/decorators/public.decorator';
 
-import { CreateTagGroupDto } from './dto/create-tag-group.dto';
-import { CreateTagDto } from './dto/create-tag.dto';
-import { UpdateTagGroupDto } from './dto/update-tag-group.dto';
-import { UpdateTagDto } from './dto/update-tag.dto';
 import { TagGroup } from './entities/tag-group.entity';
 import { Tag } from './entities/tag.entity';
 import { TagGroupsService } from './tag-groups.service';
@@ -55,47 +35,6 @@ export class TagsController {
 	@Get('groups/:id')
 	findOneGroup(@Param('id') id: string) {
 		return this.tagGroupsService.findOne(id);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Create tag group' })
-	@ApiBody({ type: CreateTagGroupDto, required: true })
-	@ApiResponse({ status: 201, type: TagGroup })
-	@Post('groups')
-	createGroup(@Body() createTagGroupDto: CreateTagGroupDto) {
-		return this.tagGroupsService.create(createTagGroupDto);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Update tag group' })
-	@ApiParam({
-		name: 'id',
-		description: 'UUID of the tag group',
-		required: true,
-	})
-	@ApiBody({ type: UpdateTagGroupDto })
-	@ApiResponse({ status: 200, type: TagGroup })
-	@ApiResponse({ status: 404, description: 'Tag group not found' })
-	@Patch('groups/:id')
-	updateGroup(
-		@Param('id') id: string,
-		@Body() updateTagGroupDto: UpdateTagGroupDto,
-	) {
-		return this.tagGroupsService.update(id, updateTagGroupDto);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Delete tag group' })
-	@ApiParam({
-		name: 'id',
-		description: 'UUID of the tag group',
-		required: true,
-	})
-	@ApiResponse({ status: 200, type: TagGroup })
-	@ApiResponse({ status: 404, description: 'Tag group not found' })
-	@Delete('groups/:id')
-	removeGroup(@Param('id') id: string) {
-		return this.tagGroupsService.remove(id);
 	}
 
 	@ApiOperation({ summary: 'Search tags by name' })
@@ -139,35 +78,5 @@ export class TagsController {
 	@Get(':id')
 	findOneTag(@Param('id') id: string) {
 		return this.tagsService.findOne(id);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Create tag' })
-	@ApiBody({ type: CreateTagDto, required: true })
-	@ApiResponse({ status: 201, type: Tag })
-	@Post()
-	createTag(@Body() createTagDto: CreateTagDto) {
-		return this.tagsService.create(createTagDto);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Update tag' })
-	@ApiParam({ name: 'id', description: 'UUID of the tag', required: true })
-	@ApiBody({ type: UpdateTagDto })
-	@ApiResponse({ status: 200, type: Tag })
-	@ApiResponse({ status: 404, description: 'Tag not found' })
-	@Patch(':id')
-	updateTag(@Param('id') id: string, @Body() updateTagDto: UpdateTagDto) {
-		return this.tagsService.update(id, updateTagDto);
-	}
-
-	@ApiBearerAuth()
-	@ApiOperation({ summary: 'Delete tag' })
-	@ApiParam({ name: 'id', description: 'UUID of the tag', required: true })
-	@ApiResponse({ status: 200, type: Tag })
-	@ApiResponse({ status: 404, description: 'Tag not found' })
-	@Delete(':id')
-	removeTag(@Param('id') id: string) {
-		return this.tagsService.remove(id);
 	}
 }

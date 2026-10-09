@@ -573,7 +573,6 @@ export class BusinessesService {
 				slug: true,
 				name: true,
 				description: true,
-				cover_img_url: true,
 				start_date: true,
 				end_date: true,
 			},

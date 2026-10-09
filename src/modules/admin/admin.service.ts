@@ -1,8 +1,10 @@
 import {
 	BadRequestException,
+	ConflictException,
 	Injectable,
 	NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { hashPassword } from 'src/modules/common/password/password.util';
 
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -40,6 +42,114 @@ export class AdminService {
 		}
 	}
 
+	private citySelect() {
+		return Prisma.sql`
+			SELECT
+				c.id,
+				c.name,
+				c.slug,
+				c.description,
+				ST_AsGeoJSON(c.location)::json AS location,
+				COALESCE(
+					(
+						SELECT json_agg(
+							json_build_object('id', t.id, 'name', t.name, 'slug', t.slug)
+							ORDER BY t.name
+						)
+						FROM city_tag ct
+						JOIN tag t ON t.id = ct."tag_id"
+						WHERE ct."city_id" = c.id
+					),
+					'[]'::json
+				) AS tags
+			FROM city c`;
+	}
+
+	private async findCity(id: string) {
+		const rows = await this.prisma.$queryRaw<any[]>(
+			Prisma.sql`${this.citySelect()} WHERE c.id = ${id}::uuid LIMIT 1`,
+		);
+		if (!rows[0]) throw new NotFoundException('City not found');
+		return rows[0];
+	}
+
+	async updateCity(id: string, input: object) {
+		const payload = input as Record<string, unknown>;
+		await this.findCity(id);
+		const hasLatitude =
+			Object.prototype.hasOwnProperty.call(payload, 'latitude') &&
+			payload.latitude !== undefined;
+		const hasLongitude =
+			Object.prototype.hasOwnProperty.call(payload, 'longitude') &&
+			payload.longitude !== undefined;
+		if (hasLatitude !== hasLongitude)
+			throw new BadRequestException(
+				'latitude and longitude must be provided together',
+			);
+
+		const assignments: Prisma.Sql[] = [];
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'name') &&
+			payload.name !== undefined
+		)
+			assignments.push(Prisma.sql`"name" = ${payload.name}`);
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'slug') &&
+			payload.slug !== undefined
+		)
+			assignments.push(Prisma.sql`"slug" = ${payload.slug}`);
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'description') &&
+			payload.description !== undefined
+		)
+			assignments.push(Prisma.sql`"description" = ${payload.description}`);
+		if (hasLatitude && hasLongitude) {
+			const latitude = Number(payload.latitude);
+			const longitude = Number(payload.longitude);
+			if (!Number.isFinite(latitude) || !Number.isFinite(longitude))
+				throw new BadRequestException('latitude and longitude must be numbers');
+			assignments.push(
+				Prisma.sql`"location" = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)`,
+			);
+		}
+
+		if (assignments.length) {
+			try {
+				await this.prisma.$executeRaw(
+					Prisma.sql`UPDATE city SET ${Prisma.join(assignments, ', ')}, "updated_at" = now() WHERE id = ${id}::uuid`,
+				);
+			} catch (error: any) {
+				if (error?.code === 'P2002' || error?.code === '23505')
+					throw new ConflictException('City slug already exists');
+				throw error;
+			}
+		}
+		return this.findCity(id);
+	}
+
+	async replaceCityTags(cityId: string, tagIds: string[]) {
+		await this.findCity(cityId);
+		const ids = [...new Set(tagIds)];
+		if (ids.length) {
+			const tags = await this.prisma.tag.findMany({
+				where: { id: { in: ids }, targets: { some: { target_type: 'city' } } },
+				select: { id: true },
+			});
+			if (tags.length !== ids.length)
+				throw new BadRequestException(
+					'All tags must exist and support target_type=city',
+				);
+		}
+		await this.prisma.$transaction(async (tx) => {
+			await tx.city_tag.deleteMany({ where: { city_id: cityId } });
+			if (ids.length)
+				await tx.city_tag.createMany({
+					data: ids.map((tag_id) => ({ city_id: cityId, tag_id })),
+				});
+		});
+		return this.findCity(cityId);
+	}
+
 	async list(resource: string) {
 		this.assertResource(resource);
 		if (resource === 'accounts')
@@ -48,8 +158,7 @@ export class AdminService {
 				orderBy: { created_at: 'desc' },
 			});
 		if (resource === 'cities')
-			return this.prisma
-				.$queryRaw`SELECT c.id, c.name, c.slug, c.description, c."cover_img_url", ST_AsGeoJSON(c.location)::json AS location, COALESCE((SELECT json_agg(t.name) FROM city_tag ct JOIN tag t ON t.id = ct."tag_id" WHERE ct."city_id" = c.id), '[]'::json) AS tags FROM city c ORDER BY c.name ASC`;
+			return this.prisma.$queryRaw`${this.citySelect()} ORDER BY c.name ASC`;
 		if (resource === 'businesses')
 			return this.prisma.business.findMany({
 				orderBy: { created_at: 'desc' },
@@ -63,8 +172,8 @@ export class AdminService {
 					tags: { include: { tag: true } },
 				},
 			});
-		if (resource === 'events')
-			return this.prisma.event.findMany({
+		if (resource === 'events') {
+			const events = await this.prisma.event.findMany({
 				orderBy: { created_at: 'desc' },
 				select: {
 					id: true,
@@ -72,7 +181,6 @@ export class AdminService {
 					name: true,
 					slug: true,
 					description: true,
-					cover_img_url: true,
 					type: true,
 					reach_level: true,
 					start_date: true,
@@ -83,6 +191,8 @@ export class AdminService {
 					tags: { include: { tag: true } },
 				},
 			});
+			return events;
+		}
 		return this.prisma.tag.findMany({
 			orderBy: [{ group: { name: 'asc' } }, { position: 'asc' }],
 			include: { group: true },
@@ -107,9 +217,19 @@ export class AdminService {
 				omit: { password: true },
 			});
 		}
-		if (resource === 'cities')
-			return this.prisma
-				.$queryRaw`INSERT INTO city (name, slug, description, cover_img_url, location) VALUES (${String(input.name)}, ${String(input.slug)}, ${input.description ? String(input.description) : null}, ${input.cover_img_url ? String(input.cover_img_url) : null}, ST_SetSRID(ST_MakePoint(${Number(input.longitude ?? 0)}, ${Number(input.latitude ?? 0)}), 4326)) RETURNING id, name, slug, description, cover_img_url`;
+		if (resource === 'cities') {
+			const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+				INSERT INTO city (name, slug, description, location)
+				VALUES (
+					${String(input.name)},
+					${String(input.slug)},
+					${input.description ? String(input.description) : null},
+					ST_SetSRID(ST_MakePoint(${Number(input.longitude ?? 0)}, ${Number(input.latitude ?? 0)}), 4326)
+				)
+				RETURNING id
+			`;
+			return this.findCity(rows[0].id);
+		}
 		if (resource === 'businesses')
 			return this.prisma.business.create({
 				data: {
@@ -127,9 +247,6 @@ export class AdminService {
 					name: String(input.name),
 					slug: String(input.slug),
 					description: input.description ? String(input.description) : null,
-					cover_img_url: input.cover_img_url
-						? String(input.cover_img_url)
-						: null,
 					type: input.type === 'featured' ? 'featured' : 'simple',
 					reach_level: input.reach_level === 'regional' ? 'regional' : 'local',
 					active: input.active !== 'false',
@@ -169,20 +286,7 @@ export class AdminService {
 				},
 				omit: { password: true },
 			});
-		if (resource === 'cities')
-			return this.prisma.city.update({
-				where: { id },
-				data: {
-					name: input.name ? String(input.name) : undefined,
-					slug: input.slug ? String(input.slug) : undefined,
-					description: input.description
-						? String(input.description)
-						: undefined,
-					cover_img_url: input.cover_img_url
-						? String(input.cover_img_url)
-						: undefined,
-				},
-			});
+		if (resource === 'cities') return this.updateCity(id, input);
 		if (resource === 'businesses')
 			return this.prisma.business.update({
 				where: { id },
@@ -200,9 +304,6 @@ export class AdminService {
 					slug: input.slug ? String(input.slug) : undefined,
 					description: input.description
 						? String(input.description)
-						: undefined,
-					cover_img_url: input.cover_img_url
-						? String(input.cover_img_url)
 						: undefined,
 					active:
 						input.active !== undefined ? input.active !== 'false' : undefined,

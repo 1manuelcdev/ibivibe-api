@@ -69,6 +69,29 @@ describe('TagGroupsService', () => {
 		});
 	});
 
+	describe('findAllAdmin', () => {
+		it('should return groups with tags and targets ordered for admin', async () => {
+			const groupWithTargets = {
+				...mockGroup,
+				tags: [{ id: 'tag-1', position: 1, targets: [] }],
+			};
+			prisma.tag_group.findMany.mockResolvedValue([groupWithTargets] as never);
+
+			const result = await service.findAllAdmin();
+
+			expect(result).toEqual([groupWithTargets]);
+			expect(prisma.tag_group.findMany).toHaveBeenCalledWith({
+				include: {
+					tags: {
+						orderBy: { position: 'asc' },
+						include: { targets: true },
+					},
+				},
+				orderBy: { name: 'asc' },
+			});
+		});
+	});
+
 	describe('findOne', () => {
 		it('should return a tag group by id', async () => {
 			const groupWithTags = { ...mockGroup, tags: [] };
@@ -118,6 +141,37 @@ describe('TagGroupsService', () => {
 			await expect(
 				service.update('non-existent', { name: 'Test' }),
 			).rejects.toThrow(NotFoundException);
+		});
+	});
+
+	describe('admin operations', () => {
+		it('should create and return a complete admin group', async () => {
+			const created = { ...mockGroup, tags: [] };
+			prisma.tag_group.create.mockResolvedValue(mockGroup);
+			prisma.tag_group.findUnique.mockResolvedValue(created as never);
+
+			const result = await service.createAdmin({ name: 'Test Group' });
+
+			expect(result).toEqual(created);
+			expect(prisma.tag_group.findUnique).toHaveBeenCalledWith({
+				where: { id: mockGroup.id },
+				include: {
+					tags: {
+						orderBy: { position: 'asc' },
+						include: { targets: true },
+					},
+				},
+			});
+		});
+
+		it('should return the deleted group with its complete admin shape', async () => {
+			const groupWithTargets = { ...mockGroup, tags: [] };
+			prisma.tag_group.findUnique.mockResolvedValue(groupWithTargets as never);
+			prisma.tag_group.delete.mockResolvedValue(mockGroup);
+
+			await expect(service.removeAdmin(mockGroup.id)).resolves.toEqual(
+				groupWithTargets,
+			);
 		});
 	});
 

@@ -4,7 +4,8 @@ import sharp from 'sharp';
 export type ImageUploadPurpose =
 	| 'business-gallery'
 	| 'business-profile'
-	| 'event-gallery';
+	| 'event-gallery'
+	| 'city-gallery';
 
 export type ProcessedImage = {
 	buffer: Buffer;
@@ -42,6 +43,14 @@ export class ImageProcessingService {
 			outputHeight: 1920,
 		},
 		'event-gallery': {
+			maxBytes: 10 * 1024 * 1024,
+			maxWidth: 4096,
+			maxHeight: 4096,
+			maxPixels: 16_000_000,
+			outputWidth: 1920,
+			outputHeight: 1920,
+		},
+		'city-gallery': {
 			maxBytes: 10 * 1024 * 1024,
 			maxWidth: 4096,
 			maxHeight: 4096,

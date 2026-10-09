@@ -11,7 +11,6 @@ import {
 	IsNotEmpty,
 	IsOptional,
 	IsString,
-	IsUrl,
 	IsUUID,
 	MaxLength,
 	MinLength,
@@ -47,12 +46,6 @@ export class CreateEventDTO {
 	@IsNotEmpty()
 	@MaxLength(300)
 	description: string;
-
-	@ApiPropertyOptional({ example: 'https://cdn.example.com/event.webp' })
-	@IsOptional()
-	@IsString()
-	@IsUrl()
-	cover_img_url?: string;
 
 	@ApiPropertyOptional({
 		example: 'evento-importante',
