@@ -181,6 +181,26 @@ describe('TagsService', () => {
 		});
 	});
 
+	describe('findAllAdmin', () => {
+		it('should return tags with their group and targets', async () => {
+			const tagWithRelations = {
+				...mockTag,
+				group: mockGroup,
+				targets: [{ id: 'target-1', target_type: 'event' }],
+			};
+			prisma.tag.findMany.mockResolvedValue([tagWithRelations] as never);
+
+			const result = await service.findAllAdmin({ group_id: 'group-1' });
+
+			expect(result).toEqual([tagWithRelations]);
+			expect(prisma.tag.findMany).toHaveBeenCalledWith({
+				where: { group_id: 'group-1' },
+				include: { group: true, targets: true },
+				orderBy: [{ group: { name: 'asc' } }, { position: 'asc' }],
+			});
+		});
+	});
+
 	describe('search', () => {
 		it('should search tags by name', async () => {
 			const tagWithGroup = { ...mockTag, group: mockGroup };
@@ -273,6 +293,35 @@ describe('TagsService', () => {
 			await expect(
 				service.update('non-existent', { name: 'Test' }),
 			).rejects.toThrow(NotFoundException);
+		});
+	});
+
+	describe('admin operations', () => {
+		it('should reject creating a tag for a missing group', async () => {
+			prisma.tag_group.findUnique.mockResolvedValue(null);
+
+			await expect(
+				service.createAdmin({ name: 'Tag', group_id: 'missing' }),
+			).rejects.toThrow(NotFoundException);
+			expect(prisma.tag.create).not.toHaveBeenCalled();
+		});
+
+		it('should create and return a tag with its admin relations', async () => {
+			const created = { ...mockTag, group: mockGroup, targets: [] };
+			prisma.tag_group.findUnique.mockResolvedValue({ id: 'group-1' } as never);
+			prisma.tag.create.mockResolvedValue(mockTag);
+			prisma.tag.findUnique.mockResolvedValue(created as never);
+
+			await expect(
+				service.createAdmin({
+					name: 'Test Tag',
+					group_id: 'group-1',
+				}),
+			).resolves.toEqual(created);
+			expect(prisma.tag.findUnique).toHaveBeenLastCalledWith({
+				where: { id: 'tag-1' },
+				include: { group: true, targets: true },
+			});
 		});
 	});
 

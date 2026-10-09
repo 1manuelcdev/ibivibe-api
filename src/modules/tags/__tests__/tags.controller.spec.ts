@@ -97,50 +97,6 @@ describe('TagsController', () => {
 				expect(tagGroupsService.findOne).toHaveBeenCalledWith('group-1');
 			});
 		});
-
-		describe('createGroup', () => {
-			it('should create a tag group', async () => {
-				jest.spyOn(tagGroupsService, 'create').mockResolvedValue(mockGroup);
-
-				const result = await controller.createGroup({
-					name: 'Test Group',
-					description: 'A test group',
-				});
-
-				expect(result).toEqual(mockGroup);
-				expect(tagGroupsService.create).toHaveBeenCalledWith({
-					name: 'Test Group',
-					description: 'A test group',
-				});
-			});
-		});
-
-		describe('updateGroup', () => {
-			it('should update a tag group', async () => {
-				const updatedGroup = { ...mockGroup, name: 'Updated Group' };
-				jest.spyOn(tagGroupsService, 'update').mockResolvedValue(updatedGroup);
-
-				const result = await controller.updateGroup('group-1', {
-					name: 'Updated Group',
-				});
-
-				expect(result).toEqual(updatedGroup);
-				expect(tagGroupsService.update).toHaveBeenCalledWith('group-1', {
-					name: 'Updated Group',
-				});
-			});
-		});
-
-		describe('removeGroup', () => {
-			it('should delete a tag group', async () => {
-				jest.spyOn(tagGroupsService, 'remove').mockResolvedValue(mockGroup);
-
-				const result = await controller.removeGroup('group-1');
-
-				expect(result).toEqual(mockGroup);
-				expect(tagGroupsService.remove).toHaveBeenCalledWith('group-1');
-			});
-		});
 	});
 
 	describe('Tags', () => {
@@ -205,50 +161,6 @@ describe('TagsController', () => {
 
 				expect(result).toEqual(tagWithGroup);
 				expect(tagsService.findOne).toHaveBeenCalledWith('tag-1');
-			});
-		});
-
-		describe('createTag', () => {
-			it('should create a tag', async () => {
-				jest.spyOn(tagsService, 'create').mockResolvedValue(mockTag);
-
-				const result = await controller.createTag({
-					name: 'Test Tag',
-					group_id: 'group-1',
-				});
-
-				expect(result).toEqual(mockTag);
-				expect(tagsService.create).toHaveBeenCalledWith({
-					name: 'Test Tag',
-					group_id: 'group-1',
-				});
-			});
-		});
-
-		describe('updateTag', () => {
-			it('should update a tag', async () => {
-				const updatedTag = { ...mockTag, name: 'Updated Tag' };
-				jest.spyOn(tagsService, 'update').mockResolvedValue(updatedTag);
-
-				const result = await controller.updateTag('tag-1', {
-					name: 'Updated Tag',
-				});
-
-				expect(result).toEqual(updatedTag);
-				expect(tagsService.update).toHaveBeenCalledWith('tag-1', {
-					name: 'Updated Tag',
-				});
-			});
-		});
-
-		describe('removeTag', () => {
-			it('should delete a tag', async () => {
-				jest.spyOn(tagsService, 'remove').mockResolvedValue(mockTag);
-
-				const result = await controller.removeTag('tag-1');
-
-				expect(result).toEqual(mockTag);
-				expect(tagsService.remove).toHaveBeenCalledWith('tag-1');
 			});
 		});
 	});
