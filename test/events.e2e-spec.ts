@@ -156,7 +156,7 @@ describe('Events (e2e)', () => {
 		const response = await request(app.getHttpServer())
 			.post(BASE_PATH)
 			.set('x-test-account-id', owner.id)
-			.send(payload('ignored-owner', refs))
+			.send(payload(crypto.randomUUID(), refs))
 			.expect(201);
 
 		expect(response.body.status).toBe('published');
