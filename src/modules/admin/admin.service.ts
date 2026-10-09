@@ -49,7 +49,6 @@ export class AdminService {
 				c.name,
 				c.slug,
 				c.description,
-				c."cover_img_url",
 				ST_AsGeoJSON(c.location)::json AS location,
 				COALESCE(
 					(
@@ -77,28 +76,33 @@ export class AdminService {
 	async updateCity(id: string, input: object) {
 		const payload = input as Record<string, unknown>;
 		await this.findCity(id);
-		const hasLatitude = Object.prototype.hasOwnProperty.call(
-			payload,
-			'latitude',
-		);
-		const hasLongitude = Object.prototype.hasOwnProperty.call(
-			payload,
-			'longitude',
-		);
+		const hasLatitude =
+			Object.prototype.hasOwnProperty.call(payload, 'latitude') &&
+			payload.latitude !== undefined;
+		const hasLongitude =
+			Object.prototype.hasOwnProperty.call(payload, 'longitude') &&
+			payload.longitude !== undefined;
 		if (hasLatitude !== hasLongitude)
 			throw new BadRequestException(
 				'latitude and longitude must be provided together',
 			);
 
 		const assignments: Prisma.Sql[] = [];
-		if (Object.prototype.hasOwnProperty.call(payload, 'name'))
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'name') &&
+			payload.name !== undefined
+		)
 			assignments.push(Prisma.sql`"name" = ${payload.name}`);
-		if (Object.prototype.hasOwnProperty.call(payload, 'slug'))
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'slug') &&
+			payload.slug !== undefined
+		)
 			assignments.push(Prisma.sql`"slug" = ${payload.slug}`);
-		if (Object.prototype.hasOwnProperty.call(payload, 'description'))
+		if (
+			Object.prototype.hasOwnProperty.call(payload, 'description') &&
+			payload.description !== undefined
+		)
 			assignments.push(Prisma.sql`"description" = ${payload.description}`);
-		if (Object.prototype.hasOwnProperty.call(payload, 'cover_img_url'))
-			assignments.push(Prisma.sql`"cover_img_url" = ${payload.cover_img_url}`);
 		if (hasLatitude && hasLongitude) {
 			const latitude = Number(payload.latitude);
 			const longitude = Number(payload.longitude);
@@ -168,8 +172,8 @@ export class AdminService {
 					tags: { include: { tag: true } },
 				},
 			});
-		if (resource === 'events')
-			return this.prisma.event.findMany({
+		if (resource === 'events') {
+			const events = await this.prisma.event.findMany({
 				orderBy: { created_at: 'desc' },
 				select: {
 					id: true,
@@ -177,7 +181,6 @@ export class AdminService {
 					name: true,
 					slug: true,
 					description: true,
-					cover_img_url: true,
 					type: true,
 					reach_level: true,
 					start_date: true,
@@ -188,6 +191,8 @@ export class AdminService {
 					tags: { include: { tag: true } },
 				},
 			});
+			return events;
+		}
 		return this.prisma.tag.findMany({
 			orderBy: [{ group: { name: 'asc' } }, { position: 'asc' }],
 			include: { group: true },
@@ -212,9 +217,19 @@ export class AdminService {
 				omit: { password: true },
 			});
 		}
-		if (resource === 'cities')
-			return this.prisma
-				.$queryRaw`INSERT INTO city (name, slug, description, cover_img_url, location) VALUES (${String(input.name)}, ${String(input.slug)}, ${input.description ? String(input.description) : null}, ${input.cover_img_url ? String(input.cover_img_url) : null}, ST_SetSRID(ST_MakePoint(${Number(input.longitude ?? 0)}, ${Number(input.latitude ?? 0)}), 4326)) RETURNING id, name, slug, description, cover_img_url`;
+		if (resource === 'cities') {
+			const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+				INSERT INTO city (name, slug, description, location)
+				VALUES (
+					${String(input.name)},
+					${String(input.slug)},
+					${input.description ? String(input.description) : null},
+					ST_SetSRID(ST_MakePoint(${Number(input.longitude ?? 0)}, ${Number(input.latitude ?? 0)}), 4326)
+				)
+				RETURNING id
+			`;
+			return this.findCity(rows[0].id);
+		}
 		if (resource === 'businesses')
 			return this.prisma.business.create({
 				data: {
@@ -232,9 +247,6 @@ export class AdminService {
 					name: String(input.name),
 					slug: String(input.slug),
 					description: input.description ? String(input.description) : null,
-					cover_img_url: input.cover_img_url
-						? String(input.cover_img_url)
-						: null,
 					type: input.type === 'featured' ? 'featured' : 'simple',
 					reach_level: input.reach_level === 'regional' ? 'regional' : 'local',
 					active: input.active !== 'false',
@@ -292,9 +304,6 @@ export class AdminService {
 					slug: input.slug ? String(input.slug) : undefined,
 					description: input.description
 						? String(input.description)
-						: undefined,
-					cover_img_url: input.cover_img_url
-						? String(input.cover_img_url)
 						: undefined,
 					active:
 						input.active !== undefined ? input.active !== 'false' : undefined,

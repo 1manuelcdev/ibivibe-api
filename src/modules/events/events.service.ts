@@ -160,7 +160,6 @@ export class EventsService {
 						owner_account_id: ownerAccountId,
 						name: dto.name,
 						description: dto.description,
-						cover_img_url: dto.cover_img_url,
 						slug,
 						type: dto.type,
 						active: dto.active,
@@ -244,7 +243,6 @@ export class EventsService {
 			data: {
 				name: dto.name,
 				description: dto.description,
-				cover_img_url: dto.cover_img_url,
 				slug: dto.slug,
 				type: dto.type,
 				active: dto.active,

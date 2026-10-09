@@ -99,4 +99,23 @@ describe('EventsService', () => {
 			} as any),
 		).rejects.toThrow('target_type=event');
 	});
+
+	it('derives the event cover URL from the cover media', async () => {
+		const event = {
+			id: crypto.randomUUID(),
+			medias: [
+				{
+					url: 'https://cdn.test/event.webp',
+					is_cover: true,
+				},
+			],
+			cities: [],
+			tags: [],
+		};
+		prisma.event.findUnique.mockResolvedValue(event as any);
+
+		const result = await service.findOne(event.id);
+
+		expect(result).not.toHaveProperty('cover_img_url');
+	});
 });

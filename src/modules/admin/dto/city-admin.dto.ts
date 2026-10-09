@@ -30,14 +30,6 @@ export class UpdateCityAdminDto {
 	@IsString()
 	description?: string | null;
 
-	@ApiPropertyOptional({
-		nullable: true,
-		example: 'https://cdn.example.com/city.webp',
-	})
-	@IsOptional()
-	@IsString()
-	cover_img_url?: string | null;
-
 	@ApiPropertyOptional({ example: -3.851 })
 	@IsOptional()
 	@IsNumber()

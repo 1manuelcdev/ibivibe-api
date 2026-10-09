@@ -116,6 +116,22 @@ export class MediasService {
 		return this.storageService.keyFromPublicUrl(url);
 	}
 
+	private async promoteNextCover(
+		tx: any,
+		ownerField: 'city_id' | 'event_id',
+		ownerId: string,
+	) {
+		const next = await tx.media.findFirst({
+			where: { [ownerField]: ownerId },
+			orderBy: [{ position: 'asc' }, { created_at: 'asc' }],
+		});
+		if (next)
+			await tx.media.update({
+				where: { id: next.id },
+				data: { is_cover: true },
+			});
+	}
+
 	async addBusinessMedia(
 		businessId: string,
 		accountId: string,
@@ -282,10 +298,12 @@ export class MediasService {
 			: await this.upload(file, 'event-gallery');
 		try {
 			return await this.prismaService.$transaction(async (tx) => {
-				const position =
-					dto.position ??
-					(await tx.media.count({ where: { event_id: eventId } }));
-				if (dto.is_cover)
+				const mediaCount = await tx.media.count({
+					where: { event_id: eventId },
+				});
+				const position = dto.position ?? mediaCount;
+				const isCover = dto.is_cover ?? mediaCount === 0;
+				if (isCover)
 					await tx.media.updateMany({
 						where: { event_id: eventId },
 						data: { is_cover: false },
@@ -295,7 +313,7 @@ export class MediasService {
 						event_id: eventId,
 						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
 						url: uploaded.url,
-						is_cover: dto.is_cover ?? position === 0,
+						is_cover: isCover,
 						position,
 						alt_text: dto.alt_text,
 					},
@@ -362,7 +380,10 @@ export class MediasService {
 			where: { id: mediaId, event_id: eventId },
 		});
 		if (!media) throw new NotFoundException('Media not found');
-		await this.prismaService.media.delete({ where: { id: mediaId } });
+		await this.prismaService.$transaction(async (tx) => {
+			await tx.media.delete({ where: { id: mediaId } });
+			if (media.is_cover) await this.promoteNextCover(tx, 'event_id', eventId);
+		});
 		const key = this.keyFromUrl(media.url);
 		if (key) await this.delete(key).catch(() => undefined);
 		return { deleted: true };
@@ -458,7 +479,10 @@ export class MediasService {
 			where: { id: mediaId, city_id: cityId },
 		});
 		if (!media) throw new NotFoundException('Media not found');
-		await this.prismaService.media.delete({ where: { id: mediaId } });
+		await this.prismaService.$transaction(async (tx) => {
+			await tx.media.delete({ where: { id: mediaId } });
+			if (media.is_cover) await this.promoteNextCover(tx, 'city_id', cityId);
+		});
 		const key = this.keyFromUrl(media.url);
 		if (key) await this.delete(key).catch(() => undefined);
 		return { deleted: true };

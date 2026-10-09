@@ -13,7 +13,6 @@ describe('AdminService city management', () => {
 		name: 'Ubajara',
 		slug: 'ubajara',
 		description: 'Serra',
-		cover_img_url: 'https://cdn.test/cover.webp',
 		location: { type: 'Point', coordinates: [-40.921, -3.851] },
 		tags: [],
 	};
@@ -36,7 +35,6 @@ describe('AdminService city management', () => {
 
 		await service.updateCity(city.id, {
 			description: null,
-			cover_img_url: null,
 		});
 
 		expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);

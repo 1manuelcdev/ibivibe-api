@@ -5,7 +5,14 @@
 		"description": "Conheça Ubajara",
 		"lat": -3.8321,
 		"lng": -40.9224,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ubajara.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/ubajara.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Turismo rural", "Ecoturismo", "Parques e atrações turísticas"]
 	},
 	{
@@ -14,7 +21,14 @@
 		"description": "Conheça Tianguá",
 		"lat": -3.7314,
 		"lng": -40.9917,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/tiangua.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/tiangua.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Lojas de roupas e calçados", "Pousadas"]
 	},
 	{
@@ -23,7 +37,14 @@
 		"description": "Conheça Viçosa do Ceará",
 		"lat": -3.5622,
 		"lng": -41.0911,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/vicosa-do-ceara.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/vicosa-do-ceara.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Espaços culturais", "Espaços de lazer", "Turismo rural"]
 	},
 	{
@@ -32,7 +53,14 @@
 		"description": "Conheça Ibiapina",
 		"lat": -3.924,
 		"lng": -40.8911,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ibiapina.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/ibiapina.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Turismo rural", "Ecoturismo", "Cafeicultura"]
 	},
 	{
@@ -41,7 +69,14 @@
 		"description": "Conheça São Benedito",
 		"lat": -4.0486,
 		"lng": -40.865,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/sao-benedito.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/sao-benedito.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Floricultura", "Produtores rurais", "Ecoturismo"]
 	},
 	{
@@ -50,7 +85,14 @@
 		"description": "Conheça Carnaubal",
 		"lat": -4.1595,
 		"lng": -40.9452,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/carnaubal.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/carnaubal.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Ecoturismo", "Turismo rural", "Produtores rurais"]
 	},
 	{
@@ -59,7 +101,14 @@
 		"description": "Conheça Guaraciaba do Norte",
 		"lat": -4.1669,
 		"lng": -40.7475,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/guaraciaba-do-norte.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/guaraciaba-do-norte.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Turismo rural", "Cafeicultura", "Ecoturismo"]
 	},
 	{
@@ -68,7 +117,14 @@
 		"description": "Conheça Croatá",
 		"lat": -4.4,
 		"lng": -40.91,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/croata.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/croata.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Ecoturismo", "Turismo rural", "Espaços culturais"]
 	},
 	{
@@ -77,7 +133,14 @@
 		"description": "Conheça Ipu",
 		"lat": -4.3175,
 		"lng": -40.7059,
-		"cover_img_url": "https://cdn.ibivibe.com.br/media/cities/ipu.png",
+		"medias": [
+			{
+				"media_type": "image",
+				"url": "https://cdn.ibivibe.com.br/media/cities/ipu.png",
+				"is_cover": true,
+				"position": 0
+			}
+		],
 		"tags": ["Ecoturismo", "Espaços culturais", "Eventos culturais"]
 	}
 ]

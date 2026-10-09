@@ -136,20 +136,18 @@ describe('Admin cities (e2e)', () => {
 			.set('Authorization', auth)
 			.send({
 				description: null,
-				cover_img_url: null,
 				latitude: -3.852,
 				longitude: -40.922,
 			})
 			.expect(200);
 
 		expect(response.body.description).toBeNull();
-		expect(response.body.cover_img_url).toBeNull();
 		expect(response.body.location.coordinates).toEqual([-40.922, -3.852]);
 
 		const stored = await prisma.$queryRaw<
-			Array<{ description: string | null; cover_img_url: string | null }>
-		>`SELECT description, cover_img_url FROM "city" WHERE id = ${cityId}::uuid`;
-		expect(stored[0]).toEqual({ description: null, cover_img_url: null });
+			Array<{ description: string | null }>
+		>`SELECT description FROM "city" WHERE id = ${cityId}::uuid`;
+		expect(stored[0]).toEqual({ description: null });
 	});
 
 	it('replaces city tags and returns complete tag objects', async () => {

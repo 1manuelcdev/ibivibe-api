@@ -96,4 +96,30 @@ describe('MediasService city administration', () => {
 			service.reorderAdminCityMedia('city-1', ['media-1', 'media-2']),
 		).rejects.toThrow(NotFoundException);
 	});
+
+	it('promotes the next city media when deleting the cover', async () => {
+		prisma.city.findUnique.mockResolvedValue({ id: 'city-1' } as never);
+		prisma.media.findFirst.mockResolvedValue({
+			id: 'media-cover',
+			city_id: 'city-1',
+			url: 'https://cdn.test/cover.webp',
+			is_cover: true,
+		} as never);
+		const tx = mockDeep<PrismaService>();
+		tx.media.findFirst.mockResolvedValue({ id: 'media-next' } as never);
+		prisma.$transaction.mockImplementation(async (callback: any) =>
+			callback(tx),
+		);
+		storage.keyFromPublicUrl.mockReturnValue('media/cities/cover.webp');
+
+		await service.removeAdminCityMedia('city-1', 'media-cover');
+
+		expect(tx.media.delete).toHaveBeenCalledWith({
+			where: { id: 'media-cover' },
+		});
+		expect(tx.media.update).toHaveBeenCalledWith({
+			where: { id: 'media-next' },
+			data: { is_cover: true },
+		});
+	});
 });
