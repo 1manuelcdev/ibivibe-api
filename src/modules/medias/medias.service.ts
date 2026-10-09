@@ -40,7 +40,9 @@ export class MediasService {
 				? 'media/businesses/profile-photos'
 				: purpose === 'event-gallery'
 					? 'media/events/gallery'
-					: 'media/businesses/gallery';
+					: purpose === 'city-gallery'
+						? 'media/cities/gallery'
+						: 'media/businesses/gallery';
 		const key = `${folder}/${randomUUID()}.${processed.extension}`;
 		const uploaded = await this.storageService.upload(
 			key,
@@ -100,6 +102,14 @@ export class MediasService {
 		if (!event) throw new NotFoundException('Event not found');
 		if (event.owner_account_id !== accountId)
 			throw new ForbiddenException('You do not own this event');
+	}
+
+	private async assertCity(cityId: string) {
+		const city = await this.prismaService.city.findUnique({
+			where: { id: cityId },
+			select: { id: true },
+		});
+		if (!city) throw new NotFoundException('City not found');
 	}
 
 	private keyFromUrl(url: string) {
@@ -350,6 +360,102 @@ export class MediasService {
 		await this.assertEventOwner(eventId, accountId);
 		const media = await this.prismaService.media.findFirst({
 			where: { id: mediaId, event_id: eventId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		await this.prismaService.media.delete({ where: { id: mediaId } });
+		const key = this.keyFromUrl(media.url);
+		if (key) await this.delete(key).catch(() => undefined);
+		return { deleted: true };
+	}
+
+	async getMediaByAdminCity(cityId: string) {
+		await this.assertCity(cityId);
+		return this.getMediaByCity(cityId);
+	}
+
+	async addAdminCityMedia(cityId: string, file: Express.Multer.File, dto: any) {
+		await this.assertCity(cityId);
+		this.assertImage(file);
+		const uploaded = file.mimetype.startsWith('video/')
+			? await this.storageService.upload(
+					`media/cities/gallery/${randomUUID()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+					file.buffer,
+					file.mimetype,
+				)
+			: await this.upload(file, 'city-gallery');
+		try {
+			return await this.prismaService.$transaction(async (tx) => {
+				const mediaCount = await tx.media.count({
+					where: { city_id: cityId },
+				});
+				const position = dto.position ?? mediaCount;
+				const isCover = dto.is_cover ?? mediaCount === 0;
+				if (isCover)
+					await tx.media.updateMany({
+						where: { city_id: cityId },
+						data: { is_cover: false },
+					});
+				return tx.media.create({
+					data: {
+						city_id: cityId,
+						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+						url: uploaded.url,
+						is_cover: isCover,
+						position,
+						alt_text: dto.alt_text,
+					},
+				});
+			});
+		} catch (error) {
+			await this.delete(uploaded.key).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	async updateAdminCityMedia(cityId: string, mediaId: string, dto: any) {
+		await this.assertCity(cityId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, city_id: cityId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		return this.prismaService.$transaction(async (tx) => {
+			if (dto.is_cover)
+				await tx.media.updateMany({
+					where: { city_id: cityId, id: { not: mediaId } },
+					data: { is_cover: false },
+				});
+			return tx.media.update({
+				where: { id: mediaId },
+				data: {
+					position: dto.position,
+					is_cover: dto.is_cover,
+					alt_text: dto.alt_text,
+				},
+			});
+		});
+	}
+
+	async reorderAdminCityMedia(cityId: string, mediaIds: string[]) {
+		await this.assertCity(cityId);
+		const records = await this.prismaService.media.findMany({
+			where: { city_id: cityId, id: { in: mediaIds } },
+			select: { id: true },
+		});
+		if (records.length !== mediaIds.length)
+			throw new NotFoundException(
+				'One or more media do not belong to this city',
+			);
+		return this.prismaService.$transaction(
+			mediaIds.map((id, position) =>
+				this.prismaService.media.update({ where: { id }, data: { position } }),
+			),
+		);
+	}
+
+	async removeAdminCityMedia(cityId: string, mediaId: string) {
+		await this.assertCity(cityId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, city_id: cityId },
 		});
 		if (!media) throw new NotFoundException('Media not found');
 		await this.prismaService.media.delete({ where: { id: mediaId } });
