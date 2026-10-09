@@ -1,0 +1,40 @@
+[
+	{
+		"name": "Administrador",
+		"username": "admin-user",
+		"email": "admin@teste.com",
+		"phone_number": "+5588990000000",
+		"password": "12345678",
+		"birth_date": "1990-01-01",
+		"role": "superuser",
+		"interests": ["Turismo rural", "Espaços culturais"],
+		"bio": "Administrador do sistema",
+		"avatar_url": "https://cdn.ibivibe.com.br/media/users/admin.png"
+	},
+	{
+		"name": "Usuário Teste",
+		"username": "user-teste",
+		"email": "user@teste.com",
+		"phone_number": "+5588990000001",
+		"password": "12345678",
+		"birth_date": "1995-05-15",
+		"role": "user",
+		"type": "personal",
+		"interests": ["Ecoturismo", "Shows e apresentações"],
+		"bio": "Usuário para testes",
+		"avatar_url": "https://cdn.ibivibe.com.br/media/users/user.png"
+	},
+	{
+		"name": "Maria Dona de Negócio",
+		"username": "maria-business",
+		"email": "maria@negocio.com",
+		"phone_number": "+5588990000002",
+		"password": "12345678",
+		"birth_date": "1985-03-20",
+		"role": "user",
+		"type": "business",
+		"interests": ["Lojas de roupas e calçados", "Restaurantes"],
+		"bio": "Empreendedora local",
+		"avatar_url": "https://cdn.ibivibe.com.br/media/users/user.png"
+	}
+]

@@ -1,0 +1,23 @@
+[
+	{
+		"name": "João Silva",
+		"email": "joao@email.com",
+		"phone_number": "+5588991111222",
+		"type": "resident",
+		"business_name": null
+	},
+	{
+		"name": "Maria Turismo",
+		"email": "maria@travel.com",
+		"phone_number": "+5588993333444",
+		"type": "tourist",
+		"business_name": null
+	},
+	{
+		"name": "Empresa Teste Ltda",
+		"email": "contato@empresateste.com",
+		"phone_number": "+5588995555666",
+		"type": "business",
+		"business_name": "Empresa Teste Ltda"
+	}
+]

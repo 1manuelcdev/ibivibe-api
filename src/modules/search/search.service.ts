@@ -17,6 +17,12 @@ export class SearchService {
 					},
 				},
 				take: 10,
+				select: {
+					id: true,
+					name: true,
+					slug: true,
+					description: true,
+				},
 			}),
 			this.prismaService.business.findMany({
 				where: {
@@ -45,6 +51,15 @@ export class SearchService {
 					active: true,
 				},
 				take: 10,
+				select: {
+					id: true,
+					name: true,
+					slug: true,
+					description: true,
+					start_date: true,
+					end_date: true,
+					active: true,
+				},
 			}),
 		]);
 

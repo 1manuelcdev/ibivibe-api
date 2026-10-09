@@ -107,7 +107,6 @@ model city {
   slug          String                  @unique
   name          String
   description   String?
-  cover_img_url String?
   location      Unsupported("geometry")
   created_at    DateTime                @default(now())
   updated_at    DateTime                @updatedAt
@@ -126,12 +125,12 @@ model event {
   owner_account_id String             @db.Uuid
   name             String             @db.VarChar(200)
   description      String?
-  cover_img_url    String?
   reach_level      reach_level
   type             event_type         @default(simple)
   start_date       DateTime
   end_date         DateTime
   active           Boolean            @default(true)
+  status           event_status       @default(published)
   created_at       DateTime           @default(now()) @db.Timestamp(6)
   updated_at       DateTime           @updatedAt @db.Timestamp(6)
   favorites        account_favorite[]
@@ -214,10 +213,27 @@ model tag {
   events      event_tag[]
   cities      city_tag[]
   interests   account_interest[]
+  targets     tag_target[]
 
   @@unique([group_id, name])
   @@index([group_id])
   @@index([slug])
+}
+
+enum tag_target_type {
+  city
+  business
+  event
+}
+
+model tag_target {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag_id      String          @db.Uuid
+  target_type tag_target_type
+  tag         tag             @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([tag_id, target_type])
+  @@index([target_type])
 }
 
 model city_tag {
@@ -412,6 +428,11 @@ enum reach_level {
 enum event_type {
   simple
   featured
+}
+
+enum event_status {
+  published
+  draft
 }
 
 enum media_type {

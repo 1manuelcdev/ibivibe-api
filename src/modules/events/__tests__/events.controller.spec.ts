@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { mockDeep /* DeepMockProxy */ } from 'jest-mock-extended';
 import { PrismaService } from 'src/modules/common/prisma/prisma.service';
+import { MediasService } from 'src/modules/medias/medias.service';
 
 import { EventsController } from '../events.controller';
 import { EventsService } from '../events.service';
@@ -17,6 +18,10 @@ describe('EventsController', () => {
 				{
 					provide: PrismaService,
 					useValue: mockDeep<PrismaService>(),
+				},
+				{
+					provide: MediasService,
+					useValue: mockDeep<MediasService>(),
 				},
 			],
 		}).compile();

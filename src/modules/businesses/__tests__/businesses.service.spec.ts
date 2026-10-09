@@ -134,6 +134,28 @@ describe('BusinessesService', () => {
 		});
 	});
 
+	describe('updateTags', () => {
+		it('should reject tags that are not available for businesses', async () => {
+			prisma.business.findUnique.mockResolvedValue({
+				id: 'business-1',
+				owner_account_id: 'account-1',
+			} as any);
+			prisma.tag.findMany.mockResolvedValue([{ id: 'tag-1' }] as any);
+
+			await expect(
+				service.updateTags('business-1', 'account-1', ['tag-1', 'tag-2']),
+			).rejects.toThrow('not found or are not available for businesses');
+
+			expect(prisma.tag.findMany).toHaveBeenCalledWith({
+				where: {
+					id: { in: ['tag-1', 'tag-2'] },
+					targets: { some: { target_type: 'business' } },
+				},
+				select: { id: true },
+			});
+		});
+	});
+
 	describe('onboard', () => {
 		const dto: BusinessOnboardingDto = {
 			name: 'Empresa Teste',

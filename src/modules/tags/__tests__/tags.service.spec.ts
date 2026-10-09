@@ -89,6 +89,26 @@ describe('TagsService', () => {
 			);
 		});
 
+		it('should create target associations when target types are provided', async () => {
+			prisma.tag.create.mockResolvedValue(mockTag);
+
+			await service.create({
+				name: 'Festival',
+				group_id: 'group-1',
+				target_types: ['event' as any, 'city' as any],
+			});
+
+			expect(prisma.tag.create).toHaveBeenCalledWith(
+				expect.objectContaining({
+					data: expect.objectContaining({
+						targets: {
+							create: [{ target_type: 'event' }, { target_type: 'city' }],
+						},
+					}),
+				}),
+			);
+		});
+
 		it('should handle diacritics in slugify', async () => {
 			prisma.tag.create.mockResolvedValue(mockTag);
 
@@ -115,7 +135,7 @@ describe('TagsService', () => {
 			expect(result).toEqual([tagWithGroup]);
 			expect(prisma.tag.findMany).toHaveBeenCalledWith(
 				expect.objectContaining({
-					include: { group: true },
+					include: { group: true, targets: true },
 				}),
 			);
 		});
@@ -141,6 +161,20 @@ describe('TagsService', () => {
 				expect.objectContaining({
 					where: expect.objectContaining({
 						name: { contains: 'Test', mode: 'insensitive' },
+					}),
+				}),
+			);
+		});
+
+		it('should filter tags by target type', async () => {
+			prisma.tag.findMany.mockResolvedValue([]);
+
+			await service.findAll({ target_type: 'event' as any });
+
+			expect(prisma.tag.findMany).toHaveBeenCalledWith(
+				expect.objectContaining({
+					where: expect.objectContaining({
+						targets: { some: { target_type: 'event' } },
 					}),
 				}),
 			);

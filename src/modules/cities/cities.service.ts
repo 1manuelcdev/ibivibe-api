@@ -14,7 +14,6 @@ export class CitiesService {
         c.name,
         c.slug,
         c.description,
-        c."cover_img_url",
         ST_AsGeoJSON(c.location)::json as location,
 		COALESCE(
 		  (
@@ -37,7 +36,6 @@ export class CitiesService {
         name,
         slug,
         description,
-        "cover_img_url",
 	        ST_AsGeoJSON(location)::json as location,
 	        COALESCE(
 	          (

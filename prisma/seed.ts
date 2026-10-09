@@ -19,7 +19,10 @@ const prisma = new PrismaClient({ adapter });
 interface TagGroupEntry {
 	name: string;
 	tags: string[];
+	target_types?: TagTargetType[];
 }
+
+type TagTargetType = 'city' | 'business' | 'event';
 
 interface CityEntry {
 	name: string;
@@ -27,7 +30,7 @@ interface CityEntry {
 	description: string;
 	lat: number;
 	lng: number;
-	cover_img_url: string;
+	medias: MediaEntry[];
 	tags: string[];
 }
 
@@ -55,6 +58,7 @@ interface MediaEntry {
 	media_type: 'image' | 'video';
 	url: string;
 	is_cover: boolean;
+	position?: number;
 	alt_text?: string;
 }
 
@@ -78,9 +82,9 @@ interface EventEntry {
 	name: string;
 	slug: string;
 	description: string;
-	cover_img_url: string;
 	reach_level: 'local' | 'regional';
 	type: 'simple' | 'featured';
+	status?: 'published' | 'draft';
 	start_date: string;
 	end_date: string;
 	active: boolean;
@@ -106,17 +110,9 @@ interface FavoriteEntry {
 	business_slug?: string;
 }
 
-interface GeneralData {
-	cities: CityEntry[];
-	users: UserEntry[];
-	businesses: BusinessEntry[];
-	events: EventEntry[];
-	leads: LeadEntry[];
-	favorites: FavoriteEntry[];
-}
-
 interface TagsData {
 	groups: TagGroupEntry[];
+	tag_targets?: Record<string, TagTargetType[]>;
 }
 
 // ——— HELPERS —————————————————————————————————————————————————————————————————
@@ -138,21 +134,31 @@ function generateSlug(name: string): string {
 function loadSeedData() {
 	const seedDataDir = path.join(__dirname, 'seed-data');
 
-	const generalData = loadJsonFile<GeneralData>(
-		path.join(seedDataDir, 'general-data.json'),
+	const tagsData = loadJsonFile<TagsData>(path.join(seedDataDir, 'tags.json'));
+	const cities = loadJsonFile<CityEntry[]>(
+		path.join(seedDataDir, 'cities.json'),
 	);
-
-	const companiesTags = loadJsonFile<TagsData>(
-		path.join(seedDataDir, 'tags-companies.json'),
+	const users = loadJsonFile<UserEntry[]>(path.join(seedDataDir, 'users.json'));
+	const businesses = loadJsonFile<BusinessEntry[]>(
+		path.join(seedDataDir, 'businesses.json'),
 	);
-
-	const eventsTags = loadJsonFile<TagsData>(
-		path.join(seedDataDir, 'tags-events.json'),
+	const events = loadJsonFile<EventEntry[]>(
+		path.join(seedDataDir, 'events.json'),
+	);
+	const leads = loadJsonFile<LeadEntry[]>(path.join(seedDataDir, 'leads.json'));
+	const favorites = loadJsonFile<FavoriteEntry[]>(
+		path.join(seedDataDir, 'favorites.json'),
 	);
 
 	return {
-		groups: [...companiesTags.groups, ...eventsTags.groups],
-		...generalData,
+		groups: tagsData.groups,
+		tagTargets: tagsData.tag_targets ?? {},
+		cities,
+		users,
+		businesses,
+		events,
+		leads,
+		favorites,
 	};
 }
 
@@ -175,6 +181,7 @@ async function main() {
 
 			// Mapa tag name -> id para resolver lookups posteriores
 			const tagMap = new Map<string, string>();
+			const tagTargetMap = new Map<string, Set<TagTargetType>>();
 
 			// Criar tag_groups e suas tags
 			for (const group of data.groups) {
@@ -202,6 +209,19 @@ async function main() {
 						},
 					});
 					tagMap.set(createdTag.name, createdTag.id);
+
+					const targetTypes =
+						data.tagTargets[tagName] ?? group.target_types ?? [];
+					if (targetTypes.length) {
+						await tx.tag_target.createMany({
+							data: targetTypes.map((target_type) => ({
+								tag_id: createdTag.id,
+								target_type,
+							})),
+							skipDuplicates: true,
+						});
+					}
+					tagTargetMap.set(createdTag.id, new Set(targetTypes));
 					position++;
 				}
 
@@ -209,6 +229,25 @@ async function main() {
 			}
 
 			console.log(`  ✅ Total: ${tagMap.size} tags processadas.`);
+
+			const resolveTag = (
+				name: string,
+				targetType: TagTargetType,
+				context: string,
+			) => {
+				const tagId = tagMap.get(name);
+				if (!tagId) {
+					console.warn(`  ⚠️  Tag "${name}" não encontrada para ${context}.`);
+					return undefined;
+				}
+				if (!tagTargetMap.get(tagId)?.has(targetType)) {
+					console.warn(
+						`  ⚠️  Tag "${name}" não disponível para ${targetType} (${context}).`,
+					);
+					return undefined;
+				}
+				return tagId;
+			};
 
 			// ─── 2. CIDADES ─────────────────────────────────────────────────
 
@@ -220,13 +259,12 @@ async function main() {
 				// city tem campo Unsupported("geometry"), então create/upsert não existem no tipo.
 				// Usamos raw SQL para insert/update + location em uma só operação.
 				await tx.$executeRaw`
-					INSERT INTO city (id, slug, name, description, cover_img_url, location, created_at, updated_at)
+					INSERT INTO city (id, slug, name, description, location, created_at, updated_at)
 					VALUES (
 						gen_random_uuid(),
 						${cityData.slug},
 						${cityData.name},
 						${cityData.description},
-						${cityData.cover_img_url},
 						ST_SetSRID(ST_MakePoint(${cityData.lng}, ${cityData.lat}), 4326),
 						now(),
 						now()
@@ -234,7 +272,6 @@ async function main() {
 					ON CONFLICT (slug) DO UPDATE SET
 						name         = EXCLUDED.name,
 						description  = EXCLUDED.description,
-						cover_img_url = EXCLUDED.cover_img_url,
 						location     = EXCLUDED.location,
 						updated_at   = now()
 				`;
@@ -253,15 +290,47 @@ async function main() {
 
 				cityMap.set(cityData.slug, cityId);
 
+				if (cityData.medias.some((media) => media.is_cover))
+					await tx.media.updateMany({
+						where: { city_id: cityId },
+						data: { is_cover: false },
+					});
+				for (const media of cityData.medias) {
+					const existingMedia = await tx.media.findFirst({
+						where: { city_id: cityId, url: media.url },
+					});
+					if (existingMedia) {
+						await tx.media.update({
+							where: { id: existingMedia.id },
+							data: {
+								media_type: media.media_type,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+								alt_text: media.alt_text,
+							},
+						});
+					} else {
+						await tx.media.create({
+							data: {
+								city_id: cityId,
+								media_type: media.media_type,
+								url: media.url,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+								alt_text: media.alt_text,
+							},
+						});
+					}
+				}
+
 				// Tags da cidade
 				for (const tagName of cityData.tags) {
-					const tagId = tagMap.get(tagName);
-					if (!tagId) {
-						console.warn(
-							`  ⚠️  Tag "${tagName}" não encontrada para cidade "${cityData.name}".`,
-						);
-						continue;
-					}
+					const tagId = resolveTag(
+						tagName,
+						'city',
+						`cidade "${cityData.name}"`,
+					);
+					if (!tagId) continue;
 
 					await tx.city_tag.upsert({
 						where: {
@@ -406,13 +475,12 @@ async function main() {
 
 				// Tags do business
 				for (const tagName of bizData.tags) {
-					const tagId = tagMap.get(tagName);
-					if (!tagId) {
-						console.warn(
-							`  ⚠️  Tag "${tagName}" não encontrada para business "${bizData.slug}".`,
-						);
-						continue;
-					}
+					const tagId = resolveTag(
+						tagName,
+						'business',
+						`business "${bizData.slug}"`,
+					);
+					if (!tagId) continue;
 
 					await tx.business_tag.upsert({
 						where: {
@@ -531,36 +599,31 @@ async function main() {
 					update: {
 						name: evData.name,
 						description: evData.description,
-						cover_img_url: evData.cover_img_url,
 						reach_level: evData.reach_level,
 						type: evData.type,
 						start_date: new Date(evData.start_date),
 						end_date: new Date(evData.end_date),
 						active: evData.active,
+						status: evData.status ?? 'published',
 					},
 					create: {
 						slug: evData.slug,
 						owner_account_id: ownerAccountId,
 						name: evData.name,
 						description: evData.description,
-						cover_img_url: evData.cover_img_url,
 						reach_level: evData.reach_level,
 						type: evData.type,
 						start_date: new Date(evData.start_date),
 						end_date: new Date(evData.end_date),
 						active: evData.active,
+						status: evData.status ?? 'published',
 					},
 				});
 
 				// Tags do evento
 				for (const tagName of evData.tags) {
-					const tagId = tagMap.get(tagName);
-					if (!tagId) {
-						console.warn(
-							`  ⚠️  Tag "${tagName}" não encontrada para evento "${evData.slug}".`,
-						);
-						continue;
-					}
+					const tagId = resolveTag(tagName, 'event', `evento "${evData.slug}"`);
+					if (!tagId) continue;
 
 					await tx.event_tag.upsert({
 						where: {
@@ -600,15 +663,35 @@ async function main() {
 				}
 
 				// Mídias do evento
-				for (const media of evData.medias) {
-					await tx.media.create({
-						data: {
-							event_id: event.id,
-							media_type: media.media_type,
-							url: media.url,
-							is_cover: media.is_cover,
-						},
+				if (evData.medias.some((media) => media.is_cover))
+					await tx.media.updateMany({
+						where: { event_id: event.id },
+						data: { is_cover: false },
 					});
+				for (const media of evData.medias) {
+					const existingMedia = await tx.media.findFirst({
+						where: { event_id: event.id, url: media.url },
+					});
+					if (existingMedia) {
+						await tx.media.update({
+							where: { id: existingMedia.id },
+							data: {
+								media_type: media.media_type,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+							},
+						});
+					} else {
+						await tx.media.create({
+							data: {
+								event_id: event.id,
+								media_type: media.media_type,
+								url: media.url,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+							},
+						});
+					}
 				}
 
 				eventCount++;

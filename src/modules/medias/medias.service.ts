@@ -38,7 +38,11 @@ export class MediasService {
 		const folder =
 			purpose === 'business-profile'
 				? 'media/businesses/profile-photos'
-				: 'media/businesses/gallery';
+				: purpose === 'event-gallery'
+					? 'media/events/gallery'
+					: purpose === 'city-gallery'
+						? 'media/cities/gallery'
+						: 'media/businesses/gallery';
 		const key = `${folder}/${randomUUID()}.${processed.extension}`;
 		const uploaded = await this.storageService.upload(
 			key,
@@ -90,8 +94,42 @@ export class MediasService {
 			throw new ForbiddenException('You do not own this business');
 	}
 
+	private async assertEventOwner(eventId: string, accountId: string) {
+		const event = await this.prismaService.event.findUnique({
+			where: { id: eventId },
+			select: { owner_account_id: true },
+		});
+		if (!event) throw new NotFoundException('Event not found');
+		if (event.owner_account_id !== accountId)
+			throw new ForbiddenException('You do not own this event');
+	}
+
+	private async assertCity(cityId: string) {
+		const city = await this.prismaService.city.findUnique({
+			where: { id: cityId },
+			select: { id: true },
+		});
+		if (!city) throw new NotFoundException('City not found');
+	}
+
 	private keyFromUrl(url: string) {
 		return this.storageService.keyFromPublicUrl(url);
+	}
+
+	private async promoteNextCover(
+		tx: any,
+		ownerField: 'city_id' | 'event_id',
+		ownerId: string,
+	) {
+		const next = await tx.media.findFirst({
+			where: { [ownerField]: ownerId },
+			orderBy: [{ position: 'asc' }, { created_at: 'asc' }],
+		});
+		if (next)
+			await tx.media.update({
+				where: { id: next.id },
+				data: { is_cover: true },
+			});
 	}
 
 	async addBusinessMedia(
@@ -234,5 +272,219 @@ export class MediasService {
 				this.prismaService.media.update({ where: { id }, data: { position } }),
 			),
 		);
+	}
+
+	async getMediaByEvent(id: string) {
+		return this.prismaService.media.findMany({
+			where: { event_id: id },
+			orderBy: [{ is_cover: 'desc' }, { position: 'asc' }],
+		});
+	}
+
+	async addEventMedia(
+		eventId: string,
+		accountId: string,
+		file: Express.Multer.File,
+		dto: any,
+	) {
+		await this.assertEventOwner(eventId, accountId);
+		this.assertImage(file);
+		const uploaded = file.mimetype.startsWith('video/')
+			? await this.storageService.upload(
+					`media/events/gallery/${randomUUID()}-${file.originalname}`,
+					file.buffer,
+					file.mimetype,
+				)
+			: await this.upload(file, 'event-gallery');
+		try {
+			return await this.prismaService.$transaction(async (tx) => {
+				const mediaCount = await tx.media.count({
+					where: { event_id: eventId },
+				});
+				const position = dto.position ?? mediaCount;
+				const isCover = dto.is_cover ?? mediaCount === 0;
+				if (isCover)
+					await tx.media.updateMany({
+						where: { event_id: eventId },
+						data: { is_cover: false },
+					});
+				return tx.media.create({
+					data: {
+						event_id: eventId,
+						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+						url: uploaded.url,
+						is_cover: isCover,
+						position,
+						alt_text: dto.alt_text,
+					},
+				});
+			});
+		} catch (error) {
+			await this.delete(uploaded.key).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	async updateEventMedia(
+		eventId: string,
+		mediaId: string,
+		accountId: string,
+		dto: any,
+	) {
+		await this.assertEventOwner(eventId, accountId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, event_id: eventId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		return this.prismaService.$transaction(async (tx) => {
+			if (dto.is_cover)
+				await tx.media.updateMany({
+					where: { event_id: eventId, id: { not: mediaId } },
+					data: { is_cover: false },
+				});
+			return tx.media.update({
+				where: { id: mediaId },
+				data: {
+					position: dto.position,
+					is_cover: dto.is_cover,
+					alt_text: dto.alt_text,
+				},
+			});
+		});
+	}
+
+	async reorderEventMedia(
+		eventId: string,
+		accountId: string,
+		mediaIds: string[],
+	) {
+		await this.assertEventOwner(eventId, accountId);
+		const records = await this.prismaService.media.findMany({
+			where: { event_id: eventId, id: { in: mediaIds } },
+			select: { id: true },
+		});
+		if (records.length !== mediaIds.length)
+			throw new NotFoundException(
+				'One or more media do not belong to this event',
+			);
+		return this.prismaService.$transaction(
+			mediaIds.map((id, position) =>
+				this.prismaService.media.update({ where: { id }, data: { position } }),
+			),
+		);
+	}
+
+	async removeEventMedia(eventId: string, mediaId: string, accountId: string) {
+		await this.assertEventOwner(eventId, accountId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, event_id: eventId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		await this.prismaService.$transaction(async (tx) => {
+			await tx.media.delete({ where: { id: mediaId } });
+			if (media.is_cover) await this.promoteNextCover(tx, 'event_id', eventId);
+		});
+		const key = this.keyFromUrl(media.url);
+		if (key) await this.delete(key).catch(() => undefined);
+		return { deleted: true };
+	}
+
+	async getMediaByAdminCity(cityId: string) {
+		await this.assertCity(cityId);
+		return this.getMediaByCity(cityId);
+	}
+
+	async addAdminCityMedia(cityId: string, file: Express.Multer.File, dto: any) {
+		await this.assertCity(cityId);
+		this.assertImage(file);
+		const uploaded = file.mimetype.startsWith('video/')
+			? await this.storageService.upload(
+					`media/cities/gallery/${randomUUID()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+					file.buffer,
+					file.mimetype,
+				)
+			: await this.upload(file, 'city-gallery');
+		try {
+			return await this.prismaService.$transaction(async (tx) => {
+				const mediaCount = await tx.media.count({
+					where: { city_id: cityId },
+				});
+				const position = dto.position ?? mediaCount;
+				const isCover = dto.is_cover ?? mediaCount === 0;
+				if (isCover)
+					await tx.media.updateMany({
+						where: { city_id: cityId },
+						data: { is_cover: false },
+					});
+				return tx.media.create({
+					data: {
+						city_id: cityId,
+						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+						url: uploaded.url,
+						is_cover: isCover,
+						position,
+						alt_text: dto.alt_text,
+					},
+				});
+			});
+		} catch (error) {
+			await this.delete(uploaded.key).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	async updateAdminCityMedia(cityId: string, mediaId: string, dto: any) {
+		await this.assertCity(cityId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, city_id: cityId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		return this.prismaService.$transaction(async (tx) => {
+			if (dto.is_cover)
+				await tx.media.updateMany({
+					where: { city_id: cityId, id: { not: mediaId } },
+					data: { is_cover: false },
+				});
+			return tx.media.update({
+				where: { id: mediaId },
+				data: {
+					position: dto.position,
+					is_cover: dto.is_cover,
+					alt_text: dto.alt_text,
+				},
+			});
+		});
+	}
+
+	async reorderAdminCityMedia(cityId: string, mediaIds: string[]) {
+		await this.assertCity(cityId);
+		const records = await this.prismaService.media.findMany({
+			where: { city_id: cityId, id: { in: mediaIds } },
+			select: { id: true },
+		});
+		if (records.length !== mediaIds.length)
+			throw new NotFoundException(
+				'One or more media do not belong to this city',
+			);
+		return this.prismaService.$transaction(
+			mediaIds.map((id, position) =>
+				this.prismaService.media.update({ where: { id }, data: { position } }),
+			),
+		);
+	}
+
+	async removeAdminCityMedia(cityId: string, mediaId: string) {
+		await this.assertCity(cityId);
+		const media = await this.prismaService.media.findFirst({
+			where: { id: mediaId, city_id: cityId },
+		});
+		if (!media) throw new NotFoundException('Media not found');
+		await this.prismaService.$transaction(async (tx) => {
+			await tx.media.delete({ where: { id: mediaId } });
+			if (media.is_cover) await this.promoteNextCover(tx, 'city_id', cityId);
+		});
+		const key = this.keyFromUrl(media.url);
+		if (key) await this.delete(key).catch(() => undefined);
+		return { deleted: true };
 	}
 }

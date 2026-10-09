@@ -1,4 +1,6 @@
+import { tag_target_type } from '@prisma/client';
 import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum } from 'class-validator';
 
 export class CreateTagDto {
 	@IsNotEmpty()
@@ -20,4 +22,9 @@ export class CreateTagDto {
 	@IsOptional()
 	@IsInt()
 	position?: number;
+
+	@IsOptional()
+	@IsArray()
+	@IsEnum(tag_target_type, { each: true })
+	target_types?: tag_target_type[];
 }

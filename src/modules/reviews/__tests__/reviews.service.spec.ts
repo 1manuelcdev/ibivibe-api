@@ -129,6 +129,7 @@ describe('ReviewsService', () => {
 				start_date: new Date(),
 				end_date: new Date(),
 				active: true,
+				status: 'published' as const,
 				created_at: new Date(),
 				updated_at: new Date(),
 			};

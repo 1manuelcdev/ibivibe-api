@@ -522,11 +522,16 @@ export class BusinessesService {
 	async updateTags(id: string, accountId: string, tagIds: string[]) {
 		await this.owned(id, accountId);
 		const tags = await this.prismaService.tag.findMany({
-			where: { id: { in: tagIds } },
+			where: {
+				id: { in: tagIds },
+				targets: { some: { target_type: 'business' } },
+			},
 			select: { id: true },
 		});
 		if (tags.length !== new Set(tagIds).size)
-			throw new NotFoundException('One or more tags were not found');
+			throw new NotFoundException(
+				'One or more tags were not found or are not available for businesses',
+			);
 		await this.prismaService.$transaction(async (tx) => {
 			await tx.business_tag.deleteMany({ where: { business_id: id } });
 			if (tagIds.length)
@@ -568,7 +573,6 @@ export class BusinessesService {
 				slug: true,
 				name: true,
 				description: true,
-				cover_img_url: true,
 				start_date: true,
 				end_date: true,
 			},
