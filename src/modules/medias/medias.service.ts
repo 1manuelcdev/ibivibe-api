@@ -38,7 +38,9 @@ export class MediasService {
 		const folder =
 			purpose === 'business-profile'
 				? 'media/businesses/profile-photos'
-				: 'media/businesses/gallery';
+				: purpose === 'event-gallery'
+					? 'media/events/gallery'
+					: 'media/businesses/gallery';
 		const key = `${folder}/${randomUUID()}.${processed.extension}`;
 		const uploaded = await this.storageService.upload(
 			key,
@@ -88,6 +90,16 @@ export class MediasService {
 		if (!business) throw new NotFoundException('Business not found');
 		if (business.owner_account_id !== accountId)
 			throw new ForbiddenException('You do not own this business');
+	}
+
+	private async assertEventOwner(eventId: string, accountId: string) {
+		const event = await this.prismaService.event.findUnique({
+			where: { id: eventId },
+			select: { owner_account_id: true },
+		});
+		if (!event) throw new NotFoundException('Event not found');
+		if (event.owner_account_id !== accountId)
+			throw new ForbiddenException('You do not own this event');
 	}
 
 	private keyFromUrl(url: string) {
@@ -234,5 +246,64 @@ export class MediasService {
 				this.prismaService.media.update({ where: { id }, data: { position } }),
 			),
 		);
+	}
+
+	async getMediaByEvent(id: string) {
+		return this.prismaService.media.findMany({
+			where: { event_id: id },
+			orderBy: [{ is_cover: 'desc' }, { position: 'asc' }],
+		});
+	}
+
+	async addEventMedia(eventId: string, accountId: string, file: Express.Multer.File, dto: any) {
+		await this.assertEventOwner(eventId, accountId);
+		this.assertImage(file);
+		const uploaded = file.mimetype.startsWith('video/')
+			? await this.storageService.upload(`media/events/gallery/${randomUUID()}-${file.originalname}`, file.buffer, file.mimetype)
+			: await this.upload(file, 'event-gallery');
+		try {
+			return await this.prismaService.$transaction(async (tx) => {
+				const position = dto.position ?? await tx.media.count({ where: { event_id: eventId } });
+				if (dto.is_cover) await tx.media.updateMany({ where: { event_id: eventId }, data: { is_cover: false } });
+				return tx.media.create({
+					data: {
+						event_id: eventId,
+						media_type: file.mimetype.startsWith('video/') ? 'video' : 'image',
+						url: uploaded.url, is_cover: dto.is_cover ?? position === 0,
+						position, alt_text: dto.alt_text,
+					},
+				});
+			});
+		} catch (error) {
+			await this.delete(uploaded.key).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	async updateEventMedia(eventId: string, mediaId: string, accountId: string, dto: any) {
+		await this.assertEventOwner(eventId, accountId);
+		const media = await this.prismaService.media.findFirst({ where: { id: mediaId, event_id: eventId } });
+		if (!media) throw new NotFoundException('Media not found');
+		return this.prismaService.$transaction(async (tx) => {
+			if (dto.is_cover) await tx.media.updateMany({ where: { event_id: eventId, id: { not: mediaId } }, data: { is_cover: false } });
+			return tx.media.update({ where: { id: mediaId }, data: { position: dto.position, is_cover: dto.is_cover, alt_text: dto.alt_text } });
+		});
+	}
+
+	async reorderEventMedia(eventId: string, accountId: string, mediaIds: string[]) {
+		await this.assertEventOwner(eventId, accountId);
+		const records = await this.prismaService.media.findMany({ where: { event_id: eventId, id: { in: mediaIds } }, select: { id: true } });
+		if (records.length !== mediaIds.length) throw new NotFoundException('One or more media do not belong to this event');
+		return this.prismaService.$transaction(mediaIds.map((id, position) => this.prismaService.media.update({ where: { id }, data: { position } })));
+	}
+
+	async removeEventMedia(eventId: string, mediaId: string, accountId: string) {
+		await this.assertEventOwner(eventId, accountId);
+		const media = await this.prismaService.media.findFirst({ where: { id: mediaId, event_id: eventId } });
+		if (!media) throw new NotFoundException('Media not found');
+		await this.prismaService.media.delete({ where: { id: mediaId } });
+		const key = this.keyFromUrl(media.url);
+		if (key) await this.delete(key).catch(() => undefined);
+		return { deleted: true };
 	}
 }

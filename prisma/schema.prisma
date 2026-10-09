@@ -132,6 +132,7 @@ model event {
   start_date       DateTime
   end_date         DateTime
   active           Boolean            @default(true)
+  status           event_status       @default(published)
   created_at       DateTime           @default(now()) @db.Timestamp(6)
   updated_at       DateTime           @updatedAt @db.Timestamp(6)
   favorites        account_favorite[]
@@ -429,6 +430,11 @@ enum reach_level {
 enum event_type {
   simple
   featured
+}
+
+enum event_status {
+  published
+  draft
 }
 
 enum media_type {

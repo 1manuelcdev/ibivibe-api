@@ -58,6 +58,7 @@ interface MediaEntry {
 	media_type: 'image' | 'video';
 	url: string;
 	is_cover: boolean;
+	position?: number;
 	alt_text?: string;
 }
 
@@ -84,6 +85,7 @@ interface EventEntry {
 	cover_img_url: string;
 	reach_level: 'local' | 'regional';
 	type: 'simple' | 'featured';
+	status?: 'published' | 'draft';
 	start_date: string;
 	end_date: string;
 	active: boolean;
@@ -573,6 +575,7 @@ async function main() {
 						start_date: new Date(evData.start_date),
 						end_date: new Date(evData.end_date),
 						active: evData.active,
+						status: evData.status ?? 'published',
 					},
 					create: {
 						slug: evData.slug,
@@ -585,6 +588,7 @@ async function main() {
 						start_date: new Date(evData.start_date),
 						end_date: new Date(evData.end_date),
 						active: evData.active,
+						status: evData.status ?? 'published',
 					},
 				});
 
@@ -632,14 +636,29 @@ async function main() {
 
 				// Mídias do evento
 				for (const media of evData.medias) {
-					await tx.media.create({
-						data: {
-							event_id: event.id,
-							media_type: media.media_type,
-							url: media.url,
-							is_cover: media.is_cover,
-						},
+					const existingMedia = await tx.media.findFirst({
+						where: { event_id: event.id, url: media.url },
 					});
+					if (existingMedia) {
+						await tx.media.update({
+							where: { id: existingMedia.id },
+							data: {
+								media_type: media.media_type,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+							},
+						});
+					} else {
+						await tx.media.create({
+							data: {
+								event_id: event.id,
+								media_type: media.media_type,
+								url: media.url,
+								is_cover: media.is_cover,
+								position: media.position ?? 0,
+							},
+						});
+					}
 				}
 
 				eventCount++;

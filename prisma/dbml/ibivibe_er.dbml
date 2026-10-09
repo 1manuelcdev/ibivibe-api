@@ -37,6 +37,7 @@ Table account {
   role account_role [not null, default: 'user']
   name String [not null]
   active Boolean [not null, default: true]
+  status event_status [not null, default: 'published']
   is_verified Boolean [not null, default: false]
   created_at DateTime [default: `now()`, not null]
   updated_at DateTime [not null]
@@ -420,6 +421,11 @@ Enum reach_level {
 Enum event_type {
   simple
   featured
+}
+
+Enum event_status {
+  published
+  draft
 }
 
 Enum media_type {
