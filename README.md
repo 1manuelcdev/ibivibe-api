@@ -195,6 +195,24 @@ A API estará disponível em:
 - API: `http://localhost:3000/api`
 - Documentação Swagger: `http://localhost:3000/docs`
 
+## Executando com Docker
+
+Com o Docker e o ngrok instalados e as variáveis da API configuradas no arquivo `.env`, suba o container e abra o túnel público:
+
+```bash
+pnpm docker:up
+```
+
+O comando compila a imagem, inicia a API em `http://localhost:3000` e executa `ngrok http 3000`. O endereço público do túnel é exibido no terminal.
+
+Para encerrar o túnel ngrok, parar a API e remover os recursos do Compose:
+
+```bash
+pnpm docker:down
+```
+
+O banco de dados continua sendo o definido por `DATABASE_URL` no `.env`. Se ele estiver rodando no próprio computador, troque `localhost` na URL por `host.docker.internal` para que o container consiga acessá-lo (por exemplo, `postgresql://usuario:senha@host.docker.internal:5432/ibivibe`).
+
 ## Scripts Disponíveis
 
 - `npm run build` - Compila o projeto TypeScript
@@ -204,6 +222,9 @@ A API estará disponível em:
 - `npm run fmt:check` - Verifica formatação
 - `npm run start` - Inicia em modo produção
 - `npm run start:dev` - Inicia em modo desenvolvimento com hot-reload
+- `pnpm docker:up` - Compila e sobe a API em Docker na porta 3000
+- `pnpm docker:down` - Encerra o ngrok, para a API e remove os recursos do Docker Compose
+- `pnpm ngrok:up` / `pnpm ngrok:down` - Inicia ou encerra apenas o túnel ngrok
 - `npm run db:migrate` - Executa migrações em produção
 - `npm run db:migrate:dev` - Executa migrações em desenvolvimento
 - `npm run db:studio` - Abre Prisma Studio
